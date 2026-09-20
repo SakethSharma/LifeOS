@@ -14,14 +14,14 @@ import {
 } from "../../core/models/settings.model";
 import { getDateRange } from "../../core/utilities/date.util";
 import { toDateString } from "../../core/utilities/format.util";
-import { ChartComponent, ChartSeries } from "../../shared/components/chart/chart.component";
+import { ChartSeries } from "../../shared/components/chart/chart.component";
 
 @Component({
   selector: "app-ai-insights",
   standalone: true,
   templateUrl: "./ai-insights.component.html",
   styleUrl: "./ai-insights.component.scss",
-  imports: [FormsModule, ChartComponent],
+  imports: [FormsModule],
 })
 export class AiInsightsComponent implements OnInit {
   private transactionService = inject(TransactionService);
@@ -79,6 +79,32 @@ export class AiInsightsComponent implements OnInit {
       this.customStart.set(toDateString(range.start));
       this.customEnd.set(toDateString(range.end));
     }
+  }
+
+  // Placeholder result card. Holds response blocks so future AI output
+  // (text, charts, tables, reports) can render through the same structure.
+  promptResult = signal<InsightBlock[] | null>(null);
+
+  submitPrompt(): void {
+    if (!this.question().trim()) return;
+
+    this.promptResult.set([
+      { type: "summary", text: "AI analysis is coming soon." },
+    ]);
+  }
+
+  onPromptEnter(event: Event): void {
+    const keyEvent = event as KeyboardEvent;
+
+    // Shift+Enter inserts a newline; Enter submits. Ignore IME composition.
+    if (keyEvent.shiftKey || keyEvent.isComposing) return;
+
+    keyEvent.preventDefault();
+    this.submitPrompt();
+  }
+
+  dismissPromptResult(): void {
+    this.promptResult.set(null);
   }
 
   askQuestion(prompt?: string): void {

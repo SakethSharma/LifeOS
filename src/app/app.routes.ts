@@ -38,15 +38,6 @@ export const routes: Routes = [
       },
 
       {
-        path: "analytics",
-        loadComponent: () =>
-          import("./features/analytics/analytics.component").then(
-            (m) => m.AnalyticsComponent,
-          ),
-        title: "Analytics — LifeOS",
-      },
-
-      {
         path: "ai-insights",
         loadComponent: () =>
           import("./features/ai-insights/ai-insights.component").then(

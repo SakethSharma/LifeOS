@@ -42,6 +42,8 @@ export class TransactionRepository {
       ...data,
       updatedAt: new Date().toISOString(),
     };
+    // A user-edited record is no longer demo data, so "Undo Demo Data" keeps it.
+    delete updated.isDemo;
     await db.transactions.put(updated);
     return updated;
   }

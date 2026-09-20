@@ -1,15 +1,17 @@
 <app-page-header title="Dashboard" [subtitle]="dateRangeLabel()">
-  <button
-    class="btn btn-secondary btn-sm"
-    (click)="loadDemo()"
-    [disabled]="loadingDemo()"
-  >
-    @if (loadingDemo()) {
-      Loading...
-    } @else {
-      Load Demo Data
-    }
-  </button>
+  @if (!hasDemoData()) {
+    <button
+      class="btn btn-secondary btn-sm"
+      (click)="loadDemo()"
+      [disabled]="loadingDemo()"
+    >
+      @if (loadingDemo()) {
+        Loading...
+      } @else {
+        Load Demo Data
+      }
+    </button>
+  }
 
   @if (hasDemoData()) {
     <button

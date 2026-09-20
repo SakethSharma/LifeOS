@@ -13,6 +13,9 @@ export class TransactionService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly count = computed(() => this._transactions().length);
+  readonly hasDemoData = computed(() =>
+    this._transactions().some((t) => t.isDemo === true),
+  );
 
   async loadAll(): Promise<void> {
     this._loading.set(true);

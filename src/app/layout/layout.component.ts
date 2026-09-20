@@ -1,10 +1,13 @@
 import { Component, signal, computed, inject } from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import {
+  NavigationEnd,
   Router,
   RouterOutlet,
   RouterLink,
   RouterLinkActive,
 } from "@angular/router";
+import { filter, map } from "rxjs";
 
 import { SettingsService } from "../core/services/settings.service";
 import { ThemeService } from "../core/services/theme.service";
@@ -42,11 +45,6 @@ export class LayoutComponent {
       route: "/transactions",
     },
     {
-      label: "Analytics",
-      icon: "analytics",
-      route: "/analytics",
-    },
-    {
       label: "AI Insights",
       icon: "ai",
       route: "/ai-insights",
@@ -75,19 +73,23 @@ export class LayoutComponent {
       route: "/transactions",
     },
     {
-      label: "Analytics",
-      icon: "analytics",
-      route: "/analytics",
-    },
-    {
       label: "Settings",
       icon: "settings",
       route: "/settings",
     },
   ];
 
+  // router.url is not reactive, so track navigations to keep the title current.
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
+  );
+
   pageTitle = computed(() => {
-    const url = this.router.url;
+    const url = this.currentUrl();
 
     const item = this.navItems.find((navItem) => url.startsWith(navItem.route));
 
@@ -121,9 +123,6 @@ export class LayoutComponent {
 
       transactions:
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
-
-      analytics:
-        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
 
       ai: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.5a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3z"/><path d="M12 14.5a3 3 0 0 0-3 3V19a3 3 0 0 0 6 0v-1.5a3 3 0 0 0-3-3z"/><path d="M5 8a3 3 0 0 0 0 6h1.5a3 3 0 0 0 0-6H5z"/><path d="M17.5 8a3 3 0 0 0 0 6H19a3 3 0 0 0 0-6h-1.5z"/></svg>',
 

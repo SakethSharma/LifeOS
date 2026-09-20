@@ -147,6 +147,9 @@ export class DashboardComponent implements OnInit {
   }
 
   async loadDemo(): Promise<void> {
+    // Demo data is loaded once; repeated clicks must not add more copies.
+    if (this.loadingDemo() || this.hasDemoData()) return;
+
     this.loadingDemo.set(true);
 
     try {
@@ -163,6 +166,8 @@ export class DashboardComponent implements OnInit {
   }
 
   async removeDemo(): Promise<void> {
+    if (this.removingDemo()) return;
+
     this.removingDemo.set(true);
     try {
       await this.transactionService.deleteAllDemo();

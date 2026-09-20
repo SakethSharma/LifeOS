@@ -53,6 +53,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   sortBy = signal("date-desc");
 
   showForm = signal(false);
+  saving = signal(false);
   editingId = signal<string | null>(null);
   showDeleteConfirm = signal(false);
   deletingTx: Transaction | null = null;
@@ -213,7 +214,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   }
 
   async saveForm(): Promise<void> {
-    if (!this.validate()) {
+    if (this.saving() || !this.validate()) {
       return;
     }
 
@@ -229,13 +230,19 @@ export class TransactionsComponent implements OnInit, OnDestroy {
 
     const editingId = this.editingId();
 
-    if (editingId) {
-      await this.transactionService.update(editingId, data);
-    } else {
-      await this.transactionService.add(data);
-    }
+    this.saving.set(true);
 
-    this.closeForm();
+    try {
+      if (editingId) {
+        await this.transactionService.update(editingId, data);
+      } else {
+        await this.transactionService.add(data);
+      }
+
+      this.closeForm();
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   confirmDelete(tx: Transaction): void {

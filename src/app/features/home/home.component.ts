@@ -15,9 +15,22 @@ export class HomeComponent {
   private transactionService = inject(TransactionService);
   private demoData = inject(DemoDataService);
 
+  private exploring = false;
+
   async exploreDemo(): Promise<void> {
-    const demoTransactions = this.demoData.generate(120);
-    await this.transactionService.bulkAdd(demoTransactions);
-    this.router.navigate(["/dashboard"]);
+    if (this.exploring) return;
+    this.exploring = true;
+
+    try {
+      // Demo data is loaded once; if it is already present, just open the dashboard.
+      if (!this.transactionService.hasDemoData()) {
+        const demoTransactions = this.demoData.generate(120);
+        await this.transactionService.bulkAdd(demoTransactions);
+      }
+
+      this.router.navigate(["/dashboard"]);
+    } finally {
+      this.exploring = false;
+    }
   }
 }
