@@ -6,6 +6,8 @@ export interface Transaction {
   amount: number;
   category: string;
   date: string;
+  /** Local time of day as "HH:mm" (24h). Optional: older records have none. */
+  time?: string;
   description: string;
   paymentMethod?: string;
   notes?: string;
@@ -19,6 +21,7 @@ export interface NewTransaction {
   amount: number;
   category: string;
   date: string;
+  time?: string;
   description: string;
   paymentMethod?: string;
   notes?: string;

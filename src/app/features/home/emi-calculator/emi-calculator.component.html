@@ -1,0 +1,195 @@
+<section class="emi" aria-labelledby="emi-title">
+  <h2 id="emi-title" class="emi-title">EMI Calculator</h2>
+
+  <p class="emi-subtitle">Estimate the monthly instalment on a loan.</p>
+
+  <form class="card emi-card" (submit)="onSubmit($event)" novalidate>
+    <div class="form-group">
+      <label class="form-label" for="emi-principal">Loan amount (₹)</label>
+
+      <input
+        id="emi-principal"
+        class="form-control"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        autocomplete="off"
+        placeholder="e.g. 10,00,000"
+        [value]="principalDisplay()"
+        [disabled]="calculating()"
+        (input)="onPrincipalInput($event)"
+      />
+
+      @if (principalWords()) {
+        <div class="emi-words">{{ principalWords() }}</div>
+      }
+
+      @if (errors()["principal"]) {
+        <div class="form-error">{{ errors()["principal"] }}</div>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="emi-rate">Interest rate (% per year)</label>
+
+      <input
+        id="emi-rate"
+        class="form-control"
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        placeholder="e.g. 8.5"
+        [value]="rate()"
+        [disabled]="calculating()"
+        (input)="onRateInput($event)"
+      />
+
+      @if (errors()["rate"]) {
+        <div class="form-error">{{ errors()["rate"] }}</div>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="emi-tenure">Loan duration</label>
+
+      <div class="emi-tenure">
+        <input
+          id="emi-tenure"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          autocomplete="off"
+          placeholder="e.g. 20"
+          [value]="tenure()"
+          [disabled]="calculating()"
+          (input)="onTenureInput($event)"
+        />
+
+        <div class="emi-unit" role="group" aria-label="Duration unit">
+          <button
+            type="button"
+            class="emi-unit-btn"
+            [class.active]="tenureUnit() === 'years'"
+            [disabled]="calculating()"
+            (click)="setTenureUnit('years')"
+          >
+            Years
+          </button>
+
+          <button
+            type="button"
+            class="emi-unit-btn"
+            [class.active]="tenureUnit() === 'months'"
+            [disabled]="calculating()"
+            (click)="setTenureUnit('months')"
+          >
+            Months
+          </button>
+        </div>
+      </div>
+
+      @if (errors()["tenure"]) {
+        <div class="form-error">{{ errors()["tenure"] }}</div>
+      }
+    </div>
+
+    <div class="emi-actions">
+      <button type="submit" class="btn btn-lg" [disabled]="calculating()">
+        Calculate EMI
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-lg btn-secondary"
+        (click)="reset()"
+      >
+        Reset
+      </button>
+    </div>
+
+    @if (calculating()) {
+      <div class="emi-loading" role="status" aria-live="polite">
+        <span class="emi-spinner" aria-hidden="true"></span>
+        Calculating your EMI…
+      </div>
+    } @else if (result(); as r) {
+      <div class="emi-output" aria-live="polite">
+        <div class="emi-result">
+          <div class="emi-result-label">Monthly EMI</div>
+
+          <div class="emi-result-value">{{ inr(r.emi) }}</div>
+
+          <div class="emi-result-note">
+            Pay {{ inr(r.emi) }} every month for {{ r.months }} months
+            (principal + interest).
+          </div>
+        </div>
+
+        <div class="emi-option">
+          <h3 class="emi-option-title">If you pay it as EMI</h3>
+
+          <dl class="emi-breakdown">
+            <div>
+              <dt>Monthly payment</dt>
+              <dd>{{ inr(r.emi) }}</dd>
+            </div>
+
+            <div>
+              <dt>First month: interest part</dt>
+              <dd>{{ inr(r.firstMonthInterest) }}</dd>
+            </div>
+
+            <div>
+              <dt>First month: principal part</dt>
+              <dd>{{ inr(r.firstMonthPrincipal) }}</dd>
+            </div>
+
+            <div>
+              <dt>Total interest ({{ r.months }} months)</dt>
+              <dd>{{ inr(r.totalInterest) }}</dd>
+            </div>
+
+            <div class="emi-total">
+              <dt>Total payment</dt>
+              <dd>{{ inr(r.totalPayment) }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="emi-option">
+          <h3 class="emi-option-title">If you pay only the interest</h3>
+
+          <dl class="emi-breakdown">
+            <div>
+              <dt>Monthly interest payment</dt>
+              <dd>{{ inr(r.interestOnlyMonthly) }}</dd>
+            </div>
+
+            <div>
+              <dt>Total interest ({{ r.months }} months)</dt>
+              <dd>{{ inr(r.interestOnlyTotalInterest) }}</dd>
+            </div>
+
+            <div>
+              <dt>Principal still due at the end</dt>
+              <dd>{{ inr(principal() ?? 0) }}</dd>
+            </div>
+
+            <div class="emi-total">
+              <dt>Total payment</dt>
+              <dd>
+                {{ inr(r.interestOnlyTotalInterest + (principal() ?? 0)) }}
+              </dd>
+            </div>
+          </dl>
+
+          <p class="emi-hint">
+            The monthly amount is lower, but the whole loan amount is still due
+            as one lump sum when the term ends.
+          </p>
+        </div>
+      </div>
+    }
+  </form>
+</section>

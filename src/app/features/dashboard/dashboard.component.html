@@ -33,17 +33,13 @@
 <!-- Date range selector -->
 
 <div class="range-bar">
-  <div class="range-tabs">
-    @for (preset of presets; track preset.value) {
-      <button
-        class="range-tab"
-        [class.active]="selectedPreset() === preset.value"
-        (click)="selectPreset(preset.value)"
-      >
-        {{ preset.label }}
-      </button>
-    }
-  </div>
+  <app-select
+    class="range-select"
+    [options]="presetOptions"
+    [value]="selectedPreset()"
+    (valueChange)="selectPreset($any($event))"
+    ariaLabel="Date range"
+  />
 </div>
 
 <!-- Empty states -->
@@ -234,7 +230,7 @@
 
                 <div class="tx-meta">
                   {{ tx.category }} ·
-                  {{ tx.date | dateFormat: dateFormat() }}
+                  {{ tx.date | dateFormat }}
                 </div>
               </div>
             </div>

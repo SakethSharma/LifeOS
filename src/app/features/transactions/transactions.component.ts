@@ -2,6 +2,7 @@ import {
   Component,
   inject,
   computed,
+  effect,
   signal,
   OnInit,
   OnDestroy,
@@ -9,6 +10,7 @@ import {
 import { FormsModule } from "@angular/forms";
 import { TransactionService } from "../../core/services/transaction.service";
 import { SettingsService } from "../../core/services/settings.service";
+import { BackButtonService } from "../../core/services/back-button.service";
 import {
   Transaction,
   TransactionType,
@@ -20,8 +22,19 @@ import {
 import { EmptyStateComponent } from "../../shared/components/empty-state/empty-state.component";
 import { PageHeaderComponent } from "../../shared/components/page-header/page-header.component";
 import { ConfirmDialogComponent } from "../../shared/components/confirm-dialog/confirm-dialog.component";
+import {
+  SelectComponent,
+  SelectOption,
+} from "../../shared/components/select/select.component";
+import { DateFieldComponent } from "../../shared/components/date-field/date-field.component";
+import { TimeFieldComponent } from "../../shared/components/time-field/time-field.component";
 import { CurrencyFormatPipe } from "../../shared/pipes/currency-format.pipe";
 import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
+import {
+  currentTimeString,
+  formatTime12,
+  toDateString,
+} from "../../core/utilities/format.util";
 
 @Component({
   selector: "app-transactions",
@@ -32,6 +45,9 @@ import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
     EmptyStateComponent,
     PageHeaderComponent,
     ConfirmDialogComponent,
+    SelectComponent,
+    DateFieldComponent,
+    TimeFieldComponent,
     CurrencyFormatPipe,
     DateFormatPipe,
   ],
@@ -39,18 +55,25 @@ import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
 export class TransactionsComponent implements OnInit, OnDestroy {
   private transactionService = inject(TransactionService);
   private settingsService = inject(SettingsService);
+  private backButton = inject(BackButtonService);
+
+  constructor() {
+    // While the add/edit dialog is open, Android Back closes it first.
+    effect((onCleanup) => {
+      if (this.showForm()) {
+        onCleanup(this.backButton.register(() => this.closeForm()));
+      }
+    });
+  }
 
   transactions = this.transactionService.transactions;
   symbol = this.settingsService.currencySymbol;
-
-  dateFormat = computed(
-    () => this.settingsService.settings()?.dateFormat ?? "MMM d, yyyy",
-  );
 
   searchTerm = signal("");
   typeFilter = signal("");
   categoryFilter = signal("");
   sortBy = signal("date-desc");
+  showAdvanced = signal(false);
 
   showForm = signal(false);
   saving = signal(false);
@@ -60,11 +83,31 @@ export class TransactionsComponent implements OnInit, OnDestroy {
 
   paymentMethods = PAYMENT_METHODS;
 
+  // Dropdown options (filters + form).
+  typeOptions: SelectOption[] = [
+    { value: "", label: "All Types" },
+    { value: "income", label: "Income" },
+    { value: "expense", label: "Expense" },
+  ];
+
+  sortOptions: SelectOption[] = [
+    { value: "date-desc", label: "Date (Newest)" },
+    { value: "date-asc", label: "Date (Oldest)" },
+    { value: "amount-desc", label: "Amount (High to Low)" },
+    { value: "amount-asc", label: "Amount (Low to High)" },
+  ];
+
+  paymentOptions: SelectOption[] = [
+    { value: "", label: "None" },
+    ...PAYMENT_METHODS.map((pm) => ({ value: pm, label: pm })),
+  ];
+
   formData: NewTransaction = {
     type: "expense",
     amount: 0,
     category: "",
-    date: new Date().toISOString().slice(0, 10),
+    date: toDateString(new Date()),
+    time: currentTimeString(),
     description: "",
     paymentMethod: "",
     notes: "",
@@ -80,11 +123,30 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     return Array.from(cats).sort();
   });
 
+  categoryFilterOptions = computed<SelectOption[]>(() => [
+    { value: "", label: "All Categories" },
+    ...this.allCategories().map((c) => ({ value: c, label: c })),
+  ]);
+
   currentCategories = computed(() => {
     return this.formData.type === "income"
       ? [...INCOME_CATEGORIES]
       : [...EXPENSE_CATEGORIES];
   });
+
+  private readonly expenseCategoryOptions: SelectOption[] =
+    EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }));
+
+  private readonly incomeCategoryOptions: SelectOption[] =
+    INCOME_CATEGORIES.map((c) => ({ value: c, label: c }));
+
+  // formData is a plain object (not a signal); returning one of two stable
+  // arrays keeps the [options] binding from changing on every check.
+  get categoryOptions(): SelectOption[] {
+    return this.formData.type === "income"
+      ? this.incomeCategoryOptions
+      : this.expenseCategoryOptions;
+  }
 
   filteredTransactions = computed(() => {
     let result = this.transactions();
@@ -117,10 +179,16 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     result = [...result].sort((a, b) => {
       switch (sort) {
         case "date-asc":
-          return a.date.localeCompare(b.date);
+          return (
+            a.date.localeCompare(b.date) ||
+            (a.time ?? "").localeCompare(b.time ?? "")
+          );
 
         case "date-desc":
-          return b.date.localeCompare(a.date);
+          return (
+            b.date.localeCompare(a.date) ||
+            (b.time ?? "").localeCompare(a.time ?? "")
+          );
 
         case "amount-asc":
           return a.amount - b.amount;
@@ -136,18 +204,22 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     return result;
   });
 
-  hasFilters = computed(() => {
-    return !!(this.searchTerm() || this.typeFilter() || this.categoryFilter());
-  });
+  // Filters hidden behind "Advanced search" still apply; this drives the badge.
+  activeFilterCount = computed(
+    () =>
+      (this.typeFilter() ? 1 : 0) +
+      (this.categoryFilter() ? 1 : 0) +
+      (this.sortBy() !== "date-desc" ? 1 : 0),
+  );
 
   ngOnInit(): void {}
 
   ngOnDestroy(): void {}
 
-  clearFilters(): void {
-    this.searchTerm.set("");
+  resetAdvanced(): void {
     this.typeFilter.set("");
     this.categoryFilter.set("");
+    this.sortBy.set("date-desc");
   }
 
   openAddForm(): void {
@@ -157,7 +229,8 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       type: "expense",
       amount: 0,
       category: "",
-      date: new Date().toISOString().slice(0, 10),
+      date: toDateString(new Date()),
+      time: currentTimeString(),
       description: "",
       paymentMethod: "",
       notes: "",
@@ -175,6 +248,8 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       amount: tx.amount,
       category: tx.category,
       date: tx.date,
+      // Older records have no time; leave it empty rather than inventing one.
+      time: tx.time ?? "",
       description: tx.description,
       paymentMethod: tx.paymentMethod ?? "",
       notes: tx.notes ?? "",
@@ -187,6 +262,19 @@ export class TransactionsComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.showForm.set(false);
     this.editingId.set(null);
+  }
+
+  setType(type: TransactionType): void {
+    this.formData.type = type;
+
+    // Keep the chosen category only if it exists for the new type.
+    if (!this.categoryOptions.some((o) => o.value === this.formData.category)) {
+      this.formData.category = "";
+    }
+  }
+
+  time12(time: string | undefined): string {
+    return formatTime12(time);
   }
 
   validate(): boolean {
@@ -223,6 +311,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
       amount: Number(this.formData.amount),
       category: this.formData.category,
       date: this.formData.date,
+      time: this.formData.time || undefined,
       description: this.formData.description.trim(),
       paymentMethod: this.formData.paymentMethod || undefined,
       notes: this.formData.notes || undefined,

@@ -16,6 +16,10 @@ import {
 import { EmptyStateComponent } from "../../shared/components/empty-state/empty-state.component";
 import { PageHeaderComponent } from "../../shared/components/page-header/page-header.component";
 import { ConfirmDialogComponent } from "../../shared/components/confirm-dialog/confirm-dialog.component";
+import {
+  SelectComponent,
+  SelectOption,
+} from "../../shared/components/select/select.component";
 import { CurrencyFormatPipe } from "../../shared/pipes/currency-format.pipe";
 import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
 
@@ -29,6 +33,7 @@ import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
     EmptyStateComponent,
     PageHeaderComponent,
     ConfirmDialogComponent,
+    SelectComponent,
     CurrencyFormatPipe,
     DateFormatPipe,
   ],
@@ -53,13 +58,12 @@ export class DashboardComponent implements OnInit {
 
   selectedPreset = signal<DateRangePreset>("this_month");
 
-  presets = DATE_RANGE_PRESETS;
+  presetOptions: SelectOption[] = DATE_RANGE_PRESETS.map((preset) => ({
+    value: preset.value,
+    label: preset.label,
+  }));
 
   symbol = this.settingsService.currencySymbol;
-
-  dateFormat = computed(
-    () => this.settingsService.settings()?.dateFormat ?? "MMM d, yyyy",
-  );
 
   dateRange = computed(() => getDateRange(this.selectedPreset()));
 

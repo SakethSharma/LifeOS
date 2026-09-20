@@ -1,0 +1,86 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.time-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.time-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.time-text.placeholder {
+  color: var(--text-tertiary);
+}
+
+.time-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.time-panel {
+  position: fixed;
+  z-index: 1200;
+  width: 224px;
+  padding: 0.5rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+.time-cols {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.time-col {
+  position: relative;
+  flex: 1;
+  height: 196px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.time-col-period {
+  flex: 0.9;
+}
+
+.time-opt {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.time-opt:hover {
+  background: var(--surface-2);
+}
+
+.time-opt.selected {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-weight: 600;
+}
+
+.time-done {
+  width: 100%;
+  margin-top: 0.5rem;
+}

@@ -56,9 +56,20 @@
           Press Enter to send, Shift+Enter for a new line
         </span>
 
-        <button type="submit" class="btn" [disabled]="!question().trim()">
-          Ask
-        </button>
+        <div class="prompt-buttons">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="!question() && !promptResult()"
+            (click)="resetPrompt()"
+          >
+            Reset
+          </button>
+
+          <button type="submit" class="btn" [disabled]="!question().trim()">
+            Ask
+          </button>
+        </div>
       </div>
     </form>
 

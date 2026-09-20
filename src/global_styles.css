@@ -357,6 +357,16 @@ td {
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 
+/* Grid/flex children may shrink below their content width (charts, long text). */
+.grid > *,
+.form-row > * {
+  min-width: 0;
+}
+
+.card {
+  min-width: 0;
+}
+
 .flex { display: flex; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }

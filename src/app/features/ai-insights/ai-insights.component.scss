@@ -138,6 +138,11 @@ h1 {
   gap: 1rem;
 }
 
+.prompt-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .prompt-hint {
   color: var(--text-tertiary);
   font-size: 0.75rem;
@@ -303,6 +308,10 @@ h1 {
   .prompt-actions {
     flex-direction: column-reverse;
     align-items: stretch;
+  }
+
+  .prompt-buttons .btn {
+    flex: 1;
   }
 
   .insight-grid {

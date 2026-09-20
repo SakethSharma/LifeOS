@@ -1,0 +1,97 @@
+<button
+  type="button"
+  class="form-control time-trigger"
+  [class.open]="open()"
+  aria-haspopup="dialog"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="ariaLabel()"
+  (click)="toggle()"
+>
+  <span class="time-text" [class.placeholder]="!display()">
+    {{ display() || "Select time" }}
+  </span>
+
+  <svg
+    class="time-icon"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+</button>
+
+@if (open()) {
+  <div
+    class="time-panel"
+    role="dialog"
+    aria-label="Choose time"
+    [style.left.px]="pos().left"
+    [style.top.px]="pos().top"
+    [style.bottom.px]="pos().bottom"
+  >
+    <div class="time-cols">
+      <ul class="time-col" role="listbox" aria-label="Hour">
+        @for (h of hours; track h) {
+          <li>
+            <button
+              type="button"
+              class="time-opt"
+              [class.selected]="h === parts().hour"
+              [attr.aria-selected]="h === parts().hour"
+              role="option"
+              (click)="pick('hour', h)"
+            >
+              {{ h }}
+            </button>
+          </li>
+        }
+      </ul>
+
+      <ul class="time-col" role="listbox" aria-label="Minute">
+        @for (m of minutes; track m) {
+          <li>
+            <button
+              type="button"
+              class="time-opt"
+              [class.selected]="m === parts().minute"
+              [attr.aria-selected]="m === parts().minute"
+              role="option"
+              (click)="pick('minute', m)"
+            >
+              {{ m }}
+            </button>
+          </li>
+        }
+      </ul>
+
+      <ul class="time-col time-col-period" role="listbox" aria-label="AM or PM">
+        @for (p of periods; track p) {
+          <li>
+            <button
+              type="button"
+              class="time-opt"
+              [class.selected]="p === parts().period"
+              [attr.aria-selected]="p === parts().period"
+              role="option"
+              (click)="pick('period', p)"
+            >
+              {{ p }}
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <button type="button" class="btn btn-sm time-done" (click)="close()">
+      Done
+    </button>
+  </div>
+}

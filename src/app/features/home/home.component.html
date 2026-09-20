@@ -1,4 +1,32 @@
 <div class="home-page">
+  <!-- Brand -->
+  <header class="brand">
+    <div class="brand-icon" aria-hidden="true">
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 3v18h18" />
+        <path d="M7 16l4-6 4 3 5-8" />
+      </svg>
+    </div>
+
+    <div class="brand-text">
+      <div class="brand-name">LifeOS</div>
+
+      <p class="brand-desc">
+        Your private personal finance dashboard. Track income and expenses,
+        understand your spending, and plan loans, all stored on your device.
+      </p>
+    </div>
+  </header>
+
   <!-- Hero -->
   <section class="hero">
     <div class="hero-content">
@@ -16,10 +44,6 @@
 
       <div class="hero-actions">
         <a routerLink="/dashboard" class="btn btn-lg"> Open Dashboard </a>
-
-        <button class="btn btn-lg btn-secondary" (click)="exploreDemo()">
-          Explore Demo
-        </button>
       </div>
     </div>
 
@@ -28,67 +52,84 @@
         <div class="preview-header">
           <div class="preview-title">Monthly Overview</div>
 
-          <div class="preview-badge">Sep 2026</div>
+          <div class="preview-badge">{{ monthLabel }}</div>
         </div>
 
         <div class="preview-stats">
           <div class="preview-stat">
             <div class="preview-stat-label">Income</div>
 
-            <div class="preview-stat-value text-income">+₹48,500</div>
+            <div class="preview-stat-value text-income">
+              {{ summary().totalIncome | currencyFormat: symbol() }}
+            </div>
           </div>
 
           <div class="preview-stat">
             <div class="preview-stat-label">Expenses</div>
 
-            <div class="preview-stat-value text-expense">-₹32,140</div>
+            <div class="preview-stat-value text-expense">
+              {{ summary().totalExpenses | currencyFormat: symbol() }}
+            </div>
           </div>
 
           <div class="preview-stat">
             <div class="preview-stat-label">Savings</div>
 
-            <div class="preview-stat-value text-success">₹16,360</div>
+            <div
+              class="preview-stat-value"
+              [class.text-success]="summary().netBalance >= 0"
+              [class.text-error]="summary().netBalance < 0"
+            >
+              {{ summary().netBalance | currencyFormat: symbol() }}
+            </div>
           </div>
         </div>
 
         <div class="preview-chart">
           <div class="bar-group">
-            <div class="bar bar-income" style="height: 70%"></div>
-            <div class="bar bar-income" style="height: 85%"></div>
-            <div class="bar bar-income" style="height: 60%"></div>
-            <div class="bar bar-income" style="height: 90%"></div>
-            <div class="bar bar-income" style="height: 75%"></div>
-            <div class="bar bar-income" style="height: 80%"></div>
+            @for (bar of monthlyBars().income; track bar.label) {
+              <div
+                class="bar bar-income"
+                [style.height.%]="bar.height"
+                [title]="bar.label + ' income'"
+              ></div>
+            }
           </div>
 
           <div class="bar-group">
-            <div class="bar bar-expense" style="height: 45%"></div>
-            <div class="bar bar-expense" style="height: 55%"></div>
-            <div class="bar bar-expense" style="height: 40%"></div>
-            <div class="bar bar-expense" style="height: 60%"></div>
-            <div class="bar bar-expense" style="height: 50%"></div>
-            <div class="bar bar-expense" style="height: 65%"></div>
+            @for (bar of monthlyBars().expenses; track bar.label) {
+              <div
+                class="bar bar-expense"
+                [style.height.%]="bar.height"
+                [title]="bar.label + ' expenses'"
+              ></div>
+            }
           </div>
         </div>
 
         <div class="preview-footer">
-          <div class="preview-tx">
-            <span class="tx-dot tx-income"></span>
-            <span class="tx-label">Salary</span>
-            <span class="tx-amount text-income">+₹48,500</span>
-          </div>
+          @for (tx of recentTransactions(); track tx.id) {
+            <div class="preview-tx">
+              <span
+                class="tx-dot"
+                [class.tx-income]="tx.type === 'income'"
+                [class.tx-expense]="tx.type === 'expense'"
+              ></span>
 
-          <div class="preview-tx">
-            <span class="tx-dot tx-expense"></span>
-            <span class="tx-label">Food</span>
-            <span class="tx-amount text-expense">-₹4,200</span>
-          </div>
+              <span class="tx-label">{{ tx.description }}</span>
 
-          <div class="preview-tx">
-            <span class="tx-dot tx-expense"></span>
-            <span class="tx-label">Transport</span>
-            <span class="tx-amount text-expense">-₹2,100</span>
-          </div>
+              <span
+                class="tx-amount"
+                [class.text-income]="tx.type === 'income'"
+                [class.text-expense]="tx.type === 'expense'"
+              >
+                {{ tx.type === "income" ? "+" : "-"
+                }}{{ tx.amount | currencyFormat: symbol() }}
+              </span>
+            </div>
+          } @empty {
+            <div class="preview-empty">No transactions this month yet.</div>
+          }
         </div>
       </div>
     </div>
@@ -419,36 +460,9 @@
     </div>
   </section>
 
+  <!-- EMI Calculator -->
+  <app-emi-calculator />
+
   <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-content">
-      <div class="footer-brand">
-        <div class="logo-icon">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M3 3v18h18" />
-            <path d="M7 16l4-6 4 3 5-8" />
-          </svg>
-        </div>
-
-        <span> LifeOS </span>
-      </div>
-
-      <div class="footer-info">
-        <span>v1.0.0</span>
-        <span>·</span>
-        <span>Local-first personal analytics</span>
-        <span>·</span>
-        <span>Your data never leaves your device</span>
-      </div>
-    </div>
-  </footer>
+  <app-footer />
 </div>

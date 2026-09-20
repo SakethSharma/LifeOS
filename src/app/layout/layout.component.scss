@@ -109,6 +109,11 @@
 
 .main {
   flex: 1;
+  /* Allow the flex item to shrink below its content width; without this a wide
+     table or chart stretches the whole page past the viewport on mobile. */
+  min-width: 0;
+  /* Contain any remaining overflow so it cannot widen the layout viewport. */
+  overflow-x: clip;
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
@@ -176,10 +181,18 @@
 .content {
   flex: 1;
   padding: 1.5rem;
-  padding-bottom: calc(1.5rem + var(--bottom-nav-height));
   max-width: 1600px;
   width: 100%;
+  min-width: 0;
   margin: 0 auto;
+}
+
+/* Footer sits below the page content, above the mobile bottom nav. */
+.layout-footer {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
 }
 
 /* Bottom navigation */
@@ -254,6 +267,9 @@
 
   .content {
     padding: 1rem;
-    padding-bottom: calc(1rem + var(--bottom-nav-height) + 1rem);
+  }
+
+  .layout-footer {
+    padding: 0 1rem calc(var(--bottom-nav-height) + 1rem);
   }
 }

@@ -27,46 +27,133 @@
       type="text"
       class="form-control search-input"
       placeholder="Search transactions..."
+      aria-label="Search transactions"
       [ngModel]="searchTerm()"
       (ngModelChange)="searchTerm.set($event)"
     />
+
+    @if (searchTerm()) {
+      <button
+        type="button"
+        class="search-clear"
+        aria-label="Clear search"
+        (click)="searchTerm.set('')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    }
   </div>
 
-  <select
-    class="form-control filter-select"
-    [ngModel]="typeFilter()"
-    (ngModelChange)="typeFilter.set($event)"
+  <button
+    type="button"
+    class="advanced-toggle"
+    [class.open]="showAdvanced()"
+    aria-controls="advanced-filters"
+    [attr.aria-expanded]="showAdvanced()"
+    (click)="showAdvanced.set(!showAdvanced())"
   >
-    <option value="">All Types</option>
-    <option value="income">Income</option>
-    <option value="expense">Expense</option>
-  </select>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
 
-  <select
-    class="form-control filter-select"
-    [ngModel]="categoryFilter()"
-    (ngModelChange)="categoryFilter.set($event)"
-  >
-    <option value="">All Categories</option>
+    Advanced search
 
-    @for (cat of allCategories(); track cat) {
-      <option [value]="cat">{{ cat }}</option>
+    @if (activeFilterCount() > 0) {
+      <span class="filter-badge" aria-label="{{ activeFilterCount() }} active">
+        {{ activeFilterCount() }}
+      </span>
     }
-  </select>
 
-  <select
-    class="form-control filter-select"
-    [ngModel]="sortBy()"
-    (ngModelChange)="sortBy.set($event)"
-  >
-    <option value="date-desc">Date (Newest)</option>
-    <option value="date-asc">Date (Oldest)</option>
-    <option value="amount-desc">Amount (High to Low)</option>
-    <option value="amount-asc">Amount (Low to High)</option>
-  </select>
+    <svg
+      class="toggle-chevron"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  </button>
 
-  @if (hasFilters()) {
-    <button class="btn btn-ghost btn-sm" (click)="clearFilters()">Clear</button>
+  @if (showAdvanced()) {
+    <div class="advanced-panel" id="advanced-filters">
+      <div class="form-group">
+        <label class="form-label">Type</label>
+
+        <app-select
+          [options]="typeOptions"
+          [value]="typeFilter()"
+          (valueChange)="typeFilter.set($event)"
+          ariaLabel="Filter by type"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+
+        <app-select
+          [options]="categoryFilterOptions()"
+          [value]="categoryFilter()"
+          (valueChange)="categoryFilter.set($event)"
+          ariaLabel="Filter by category"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Sort by</label>
+
+        <app-select
+          [options]="sortOptions"
+          [value]="sortBy()"
+          (valueChange)="sortBy.set($event)"
+          ariaLabel="Sort transactions"
+        />
+      </div>
+
+      @if (activeFilterCount() > 0) {
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm reset-filters"
+          (click)="resetAdvanced()"
+        >
+          Reset filters
+        </button>
+      }
+    </div>
   }
 </div>
 
@@ -111,7 +198,7 @@
         <tbody>
           @for (tx of filteredTransactions(); track tx.id) {
             <tr>
-              <td>
+              <td class="td-desc">
                 <div class="tx-desc-cell">
                   {{ tx.description }}
 
@@ -127,9 +214,9 @@
                 }
               </td>
 
-              <td>{{ tx.category }}</td>
+              <td class="td-cat">{{ tx.category }}</td>
 
-              <td>
+              <td class="td-type">
                 <span
                   class="badge"
                   [class.badge-income]="tx.type === 'income'"
@@ -139,12 +226,16 @@
                 </span>
               </td>
 
-              <td>
-                {{ tx.date | dateFormat: dateFormat() }}
+              <td class="td-date">
+                {{ tx.date | dateFormat }}
+
+                @if (tx.time) {
+                  <span class="tx-time">{{ time12(tx.time) }}</span>
+                }
               </td>
 
               <td
-                class="text-right"
+                class="text-right td-amount"
                 [class.text-income]="tx.type === 'income'"
                 [class.text-expense]="tx.type === 'expense'"
               >
@@ -152,7 +243,7 @@
                 }}{{ tx.amount | currencyFormat: symbol() }}
               </td>
 
-              <td class="text-right">
+              <td class="text-right td-actions">
                 <div class="tx-actions">
                   <button
                     class="icon-btn-sm"
@@ -245,7 +336,7 @@
                 type="button"
                 class="type-btn"
                 [class.active]="formData.type === 'expense'"
-                (click)="formData.type = 'expense'"
+                (click)="setType('expense')"
               >
                 Expense
               </button>
@@ -254,44 +345,42 @@
                 type="button"
                 class="type-btn"
                 [class.active]="formData.type === 'income'"
-                (click)="formData.type = 'income'"
+                (click)="setType('income')"
               >
                 Income
               </button>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Amount *</label>
+          <div class="form-group">
+            <label class="form-label">Amount *</label>
 
-              <input
-                type="number"
-                class="form-control"
-                [(ngModel)]="formData.amount"
-                name="amount"
-                required
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-              />
+            <input
+              type="number"
+              class="form-control"
+              [(ngModel)]="formData.amount"
+              name="amount"
+              required
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              (focus)="$any($event.target).select()"
+            />
 
-              @if (formErrors()["amount"]) {
-                <div class="form-error">
-                  {{ formErrors()["amount"] }}
-                </div>
-              }
-            </div>
+            @if (formErrors()["amount"]) {
+              <div class="form-error">
+                {{ formErrors()["amount"] }}
+              </div>
+            }
+          </div>
 
-            <div class="form-group">
+          <div class="datetime-row">
+            <div class="form-group date-group">
               <label class="form-label">Date *</label>
 
-              <input
-                type="date"
-                class="form-control"
-                [(ngModel)]="formData.date"
-                name="date"
-                required
+              <app-date-field
+                [value]="formData.date"
+                (valueChange)="formData.date = $event"
               />
 
               @if (formErrors()["date"]) {
@@ -300,23 +389,27 @@
                 </div>
               }
             </div>
+
+            <div class="form-group time-group">
+              <label class="form-label">Time</label>
+
+              <app-time-field
+                [value]="formData.time ?? ''"
+                (valueChange)="formData.time = $event"
+              />
+            </div>
           </div>
 
           <div class="form-group">
             <label class="form-label">Category *</label>
 
-            <select
-              class="form-control"
-              [(ngModel)]="formData.category"
-              name="category"
-              required
-            >
-              <option value="">Select category</option>
-
-              @for (cat of currentCategories(); track cat) {
-                <option [value]="cat">{{ cat }}</option>
-              }
-            </select>
+            <app-select
+              [options]="categoryOptions"
+              [value]="formData.category"
+              (valueChange)="formData.category = $event"
+              placeholder="Select category"
+              ariaLabel="Category"
+            />
 
             @if (formErrors()["category"]) {
               <div class="form-error">
@@ -328,14 +421,14 @@
           <div class="form-group">
             <label class="form-label">Description *</label>
 
-            <input
-              type="text"
-              class="form-control"
+            <textarea
+              class="form-control description-input"
+              rows="1"
               [(ngModel)]="formData.description"
               name="description"
               required
               placeholder="e.g. Grocery shopping"
-            />
+            ></textarea>
 
             @if (formErrors()["description"]) {
               <div class="form-error">
@@ -348,17 +441,12 @@
             <div class="form-group">
               <label class="form-label">Payment Method</label>
 
-              <select
-                class="form-control"
-                [(ngModel)]="formData.paymentMethod"
-                name="paymentMethod"
-              >
-                <option value="">None</option>
-
-                @for (pm of paymentMethods; track pm) {
-                  <option [value]="pm">{{ pm }}</option>
-                }
-              </select>
+              <app-select
+                [options]="paymentOptions"
+                [value]="formData.paymentMethod ?? ''"
+                (valueChange)="formData.paymentMethod = $event"
+                ariaLabel="Payment method"
+              />
             </div>
 
             <div class="form-group">

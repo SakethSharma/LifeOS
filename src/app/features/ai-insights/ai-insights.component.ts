@@ -107,6 +107,12 @@ export class AiInsightsComponent implements OnInit {
     this.promptResult.set(null);
   }
 
+  /** Clears the prompt text and hides any result card. */
+  resetPrompt(): void {
+    this.question.set("");
+    this.promptResult.set(null);
+  }
+
   askQuestion(prompt?: string): void {
     const q = (prompt ?? this.question()).trim();
     if (!q || this.loading()) return;

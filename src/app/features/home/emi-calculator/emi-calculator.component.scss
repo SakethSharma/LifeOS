@@ -1,0 +1,223 @@
+:host {
+  display: block;
+}
+
+.emi {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.emi-title {
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.emi-subtitle {
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.emi-card {
+  padding: 1.5rem;
+}
+
+/* 16px text keeps mobile browsers from zooming on focus. */
+.emi-card .form-control {
+  min-height: 48px;
+  font-size: 1rem;
+}
+
+.emi-words {
+  margin-top: 0.375rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.emi-tenure {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.emi-tenure .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.emi-unit {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.emi-unit-btn {
+  padding: 0 0.875rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.emi-unit-btn.active {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.emi-unit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.emi-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1.25rem 0;
+  color: var(--text-secondary);
+}
+
+.emi-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: emi-spin 0.8s linear infinite;
+}
+
+@keyframes emi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.emi-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.emi-actions .btn {
+  flex: 1;
+}
+
+.emi-output {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.emi-result {
+  padding: 1.25rem;
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.emi-result-note {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.emi-option {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.emi-option-title {
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.emi-total {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.emi-total dt,
+.emi-total dd {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.emi-hint {
+  margin-top: 0.75rem;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.emi-result-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.emi-result-value {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--primary);
+  font-size: 2rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.emi-breakdown {
+  display: grid;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+.emi-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.emi-breakdown dt {
+  color: var(--text-secondary);
+}
+
+.emi-breakdown dd {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .emi-card {
+    padding: 1rem;
+  }
+
+  .emi-tenure {
+    flex-direction: column;
+  }
+
+  .emi-unit-btn {
+    flex: 1;
+    min-height: 40px;
+  }
+
+  .emi-result-value {
+    font-size: 1.75rem;
+  }
+}

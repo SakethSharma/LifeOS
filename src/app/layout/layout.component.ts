@@ -1,5 +1,6 @@
-import { Component, signal, computed, inject } from "@angular/core";
+import { Component, signal, computed, effect, inject } from "@angular/core";
 import { toSignal } from "@angular/core/rxjs-interop";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import {
   NavigationEnd,
   Router,
@@ -11,6 +12,8 @@ import { filter, map } from "rxjs";
 
 import { SettingsService } from "../core/services/settings.service";
 import { ThemeService } from "../core/services/theme.service";
+import { BackButtonService } from "../core/services/back-button.service";
+import { AppFooterComponent } from "../shared/components/app-footer/app-footer.component";
 
 interface NavItem {
   label: string;
@@ -22,14 +25,26 @@ interface NavItem {
   selector: "app-layout",
   templateUrl: "./layout.component.html",
   styleUrl: "./layout.component.scss",
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AppFooterComponent],
 })
 export class LayoutComponent {
   private readonly router = inject(Router);
   private readonly settings = inject(SettingsService);
   private readonly themeService = inject(ThemeService);
+  private readonly backButton = inject(BackButtonService);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly iconCache = new Map<string, SafeHtml>();
 
   sidebarOpen = signal(false);
+
+  constructor() {
+    // While the drawer is open, Android Back closes it before anything else.
+    effect((onCleanup) => {
+      if (this.sidebarOpen()) {
+        onCleanup(this.backButton.register(() => this.closeSidebar()));
+      }
+    });
+  }
 
   isDark = this.themeService.isDark;
 
@@ -114,7 +129,21 @@ export class LayoutComponent {
     await this.settings.setTheme(isCurrentlyDark ? "light" : "dark");
   }
 
-  getIcon(name: string): string {
+  // The SVG strings below are static constants. Angular's sanitizer strips <svg>
+  // from [innerHTML], which left the nav icons blank, so they are marked trusted
+  // (and cached so the binding value stays stable between change detections).
+  getIcon(name: string): SafeHtml {
+    let icon = this.iconCache.get(name);
+
+    if (!icon) {
+      icon = this.sanitizer.bypassSecurityTrustHtml(this.iconSvg(name));
+      this.iconCache.set(name, icon);
+    }
+
+    return icon;
+  }
+
+  private iconSvg(name: string): string {
     const icons: Record<string, string> = {
       home: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
 
