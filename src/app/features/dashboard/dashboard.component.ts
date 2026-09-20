@@ -15,6 +15,7 @@ import {
 } from "../../shared/components/chart/chart.component";
 import { EmptyStateComponent } from "../../shared/components/empty-state/empty-state.component";
 import { PageHeaderComponent } from "../../shared/components/page-header/page-header.component";
+import { ConfirmDialogComponent } from "../../shared/components/confirm-dialog/confirm-dialog.component";
 import { CurrencyFormatPipe } from "../../shared/pipes/currency-format.pipe";
 import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
 
@@ -27,6 +28,7 @@ import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
     ChartComponent,
     EmptyStateComponent,
     PageHeaderComponent,
+    ConfirmDialogComponent,
     CurrencyFormatPipe,
     DateFormatPipe,
   ],
@@ -42,6 +44,12 @@ export class DashboardComponent implements OnInit {
   loading = this.transactionService.loading;
 
   loadingDemo = signal(false);
+  removingDemo = signal(false);
+  showRemoveDemoConfirm = signal(false);
+
+  hasDemoData = computed(() =>
+    this.transactions().some((t) => t.isDemo === true),
+  );
 
   selectedPreset = signal<DateRangePreset>("this_month");
 
@@ -151,6 +159,20 @@ export class DashboardComponent implements OnInit {
       await this.transactionService.bulkAdd(demo);
     } finally {
       this.loadingDemo.set(false);
+    }
+  }
+
+  confirmRemoveDemo(): void {
+    this.showRemoveDemoConfirm.set(true);
+  }
+
+  async removeDemo(): Promise<void> {
+    this.removingDemo.set(true);
+    try {
+      await this.transactionService.deleteAllDemo();
+    } finally {
+      this.removingDemo.set(false);
+      this.showRemoveDemoConfirm.set(false);
     }
   }
 }

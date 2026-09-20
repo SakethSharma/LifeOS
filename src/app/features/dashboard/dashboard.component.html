@@ -11,6 +11,20 @@
     }
   </button>
 
+  @if (hasDemoData()) {
+    <button
+      class="btn btn-secondary btn-sm"
+      (click)="confirmRemoveDemo()"
+      [disabled]="removingDemo()"
+    >
+      @if (removingDemo()) {
+        Removing...
+      } @else {
+        Remove Demo Data
+      }
+    </button>
+  }
+
   <button class="btn btn-sm" (click)="addTransaction()">Add Transaction</button>
 </app-page-header>
 
@@ -242,3 +256,13 @@
     }
   </div>
 }
+
+<app-confirm-dialog
+  [open]="showRemoveDemoConfirm()"
+  title="Remove Demo Data"
+  message="This will remove all transactions marked as demo. Your real transactions will not be affected."
+  confirmText="Remove"
+  [danger]="true"
+  (confirmed)="removeDemo()"
+  (cancelled)="showRemoveDemoConfirm.set(false)"
+/>
