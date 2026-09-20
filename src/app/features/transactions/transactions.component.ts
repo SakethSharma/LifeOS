@@ -6,7 +6,6 @@ import {
   OnInit,
   OnDestroy,
 } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
 import { FormsModule } from "@angular/forms";
 import { TransactionService } from "../../core/services/transaction.service";
 import { SettingsService } from "../../core/services/settings.service";
@@ -40,8 +39,6 @@ import { DateFormatPipe } from "../../shared/pipes/date-format.pipe";
 export class TransactionsComponent implements OnInit, OnDestroy {
   private transactionService = inject(TransactionService);
   private settingsService = inject(SettingsService);
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
 
   transactions = this.transactionService.transactions;
   symbol = this.settingsService.currencySymbol;
@@ -142,14 +139,7 @@ export class TransactionsComponent implements OnInit, OnDestroy {
     return !!(this.searchTerm() || this.typeFilter() || this.categoryFilter());
   });
 
-  ngOnInit(): void {
-    this.route.queryParams.subscribe((params) => {
-      if (params["action"] === "add") {
-        this.openAddForm();
-        this.router.navigate(["/transactions"], { queryParams: {} });
-      }
-    });
-  }
+  ngOnInit(): void {}
 
   ngOnDestroy(): void {}
 

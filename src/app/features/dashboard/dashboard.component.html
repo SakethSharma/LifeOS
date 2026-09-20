@@ -20,7 +20,7 @@
       @if (removingDemo()) {
         Removing...
       } @else {
-        Remove Demo Data
+        Undo Demo Data
       }
     </button>
   }
@@ -259,7 +259,7 @@
 
 <app-confirm-dialog
   [open]="showRemoveDemoConfirm()"
-  title="Remove Demo Data"
+  title="Undo Demo Data"
   message="This will remove all transactions marked as demo. Your real transactions will not be affected."
   confirmText="Remove"
   [danger]="true"

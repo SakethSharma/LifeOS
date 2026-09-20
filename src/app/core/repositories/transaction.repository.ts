@@ -51,10 +51,12 @@ export class TransactionRepository {
   }
 
   async deleteAllDemo(): Promise<number> {
-    return db.transactions
-      .where("isDemo")
-      .equals(1 as never)
-      .delete();
+    const demoTransactions = await db.transactions
+      .filter((transaction) => transaction.isDemo === true)
+      .toArray();
+
+    await db.transactions.bulkDelete(demoTransactions.map((transaction) => transaction.id));
+    return demoTransactions.length;
   }
 
   async deleteAll(): Promise<number> {

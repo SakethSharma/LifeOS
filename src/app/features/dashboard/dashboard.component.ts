@@ -139,11 +139,7 @@ export class DashboardComponent implements OnInit {
   }
 
   addTransaction(): void {
-    this.router.navigate(["/transactions"], {
-      queryParams: {
-        action: "add",
-      },
-    });
+    this.router.navigate(["/transactions"]);
   }
 
   viewAllTransactions(): void {
