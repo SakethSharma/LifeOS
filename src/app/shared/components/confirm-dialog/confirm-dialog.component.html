@@ -1,0 +1,23 @@
+@if (open) {
+  <div class="dialog-overlay" (click)="onCancel()">
+    <div class="dialog" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2 class="dialog-title">{{ title }}</h2>
+      </div>
+
+      <div class="dialog-body">
+        <p>{{ message }}</p>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" (click)="onCancel()">
+          {{ cancelText }}
+        </button>
+
+        <button class="btn" [class.btn-danger]="danger" (click)="onConfirm()">
+          {{ confirmText }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

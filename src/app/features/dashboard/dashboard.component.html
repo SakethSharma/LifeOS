@@ -1,0 +1,244 @@
+<app-page-header title="Dashboard" [subtitle]="dateRangeLabel()">
+  <button
+    class="btn btn-secondary btn-sm"
+    (click)="loadDemo()"
+    [disabled]="loadingDemo()"
+  >
+    @if (loadingDemo()) {
+      Loading...
+    } @else {
+      Load Demo Data
+    }
+  </button>
+
+  <button class="btn btn-sm" (click)="addTransaction()">Add Transaction</button>
+</app-page-header>
+
+<!-- Date range selector -->
+
+<div class="range-bar">
+  <div class="range-tabs">
+    @for (preset of presets; track preset.value) {
+      <button
+        class="range-tab"
+        [class.active]="selectedPreset() === preset.value"
+        (click)="selectPreset(preset.value)"
+      >
+        {{ preset.label }}
+      </button>
+    }
+  </div>
+</div>
+
+<!-- Empty states -->
+
+@if (transactions().length === 0 && !loading()) {
+  <div class="card">
+    <app-empty-state
+      title="No transactions yet"
+      message="Start by adding your first transaction or load demo data to see how the dashboard works."
+      icon="dashboard"
+    >
+      <div action class="flex gap-2">
+        <button class="btn btn-secondary" (click)="loadDemo()">
+          Load Demo Data
+        </button>
+
+        <button class="btn" (click)="addTransaction()">Add Transaction</button>
+      </div>
+    </app-empty-state>
+  </div>
+} @else if (filteredTransactions().length === 0 && !loading()) {
+  <div class="card">
+    <app-empty-state
+      title="No data for this period"
+      message="Try selecting a different date range or add transactions for this period."
+      icon="calendar"
+    />
+  </div>
+} @else {
+  <!-- Summary cards -->
+
+  <div class="grid grid-4 mb-4">
+    <div class="card stat-card">
+      <div class="stat-label">Total Income</div>
+
+      <div class="stat-value text-income">
+        {{ summary().totalIncome | currencyFormat: symbol() }}
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="stat-label">Total Expenses</div>
+
+      <div class="stat-value text-expense">
+        {{ summary().totalExpenses | currencyFormat: symbol() }}
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="stat-label">Net Balance</div>
+
+      <div
+        class="stat-value"
+        [class.text-success]="summary().netBalance >= 0"
+        [class.text-error]="summary().netBalance < 0"
+      >
+        {{ summary().netBalance | currencyFormat: symbol() }}
+      </div>
+    </div>
+
+    <div class="card stat-card">
+      <div class="stat-label">Savings Rate</div>
+
+      <div class="stat-value text-success">
+        {{ summary().savingsRate.toFixed(1) }}%
+      </div>
+    </div>
+  </div>
+
+  <!-- Income vs Expenses and Expense Categories -->
+
+  <div class="grid grid-2 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Income vs Expenses</div>
+      </div>
+
+      <app-chart
+        type="bar"
+        [labels]="monthlyLabels()"
+        [series]="monthlySeries()"
+        [height]="280"
+        [colors]="['#10b981', '#ef4444']"
+      />
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Expense Categories</div>
+      </div>
+
+      @if (categoryLabels().length > 0) {
+        <app-chart
+          type="donut"
+          [labels]="categoryLabels()"
+          [series]="categorySeries()"
+          [height]="280"
+        />
+      } @else {
+        <app-empty-state
+          title="No expenses"
+          message="No expense transactions in this period."
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Spending Trend and Top Categories -->
+
+  <div class="grid grid-2 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Spending Trend</div>
+      </div>
+
+      <app-chart
+        type="line"
+        [labels]="trendLabels()"
+        [series]="trendSeries()"
+        [height]="260"
+        [colors]="['#ef4444']"
+        [smooth]="true"
+        [areaStyle]="true"
+      />
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Top Spending Categories</div>
+      </div>
+
+      @if (topCategories().length > 0) {
+        <div class="top-cats">
+          @for (cat of topCategories(); track cat.category) {
+            <div class="top-cat-row">
+              <span class="top-cat-name">
+                {{ cat.category }}
+              </span>
+
+              <div class="top-cat-bar">
+                <div
+                  class="top-cat-fill"
+                  [style.width.%]="cat.percentage"
+                ></div>
+              </div>
+
+              <span class="top-cat-amount">
+                {{ cat.amount | currencyFormat: symbol() }}
+              </span>
+            </div>
+          }
+        </div>
+      } @else {
+        <app-empty-state
+          title="No data"
+          message="No expense categories to display."
+        />
+      }
+    </div>
+  </div>
+
+  <!-- Recent transactions -->
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Recent Transactions</div>
+
+      <button class="btn btn-ghost btn-sm" (click)="viewAllTransactions()">
+        View All
+      </button>
+    </div>
+
+    @if (recentTransactions().length > 0) {
+      <div class="tx-list">
+        @for (tx of recentTransactions(); track tx.id) {
+          <div class="tx-row">
+            <div class="tx-info">
+              <span
+                class="tx-type-dot"
+                [class.tx-income-dot]="tx.type === 'income'"
+                [class.tx-expense-dot]="tx.type === 'expense'"
+              ></span>
+
+              <div>
+                <div class="tx-desc">
+                  {{ tx.description }}
+                </div>
+
+                <div class="tx-meta">
+                  {{ tx.category }} ·
+                  {{ tx.date | dateFormat: dateFormat() }}
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="tx-amount"
+              [class.text-income]="tx.type === 'income'"
+              [class.text-expense]="tx.type === 'expense'"
+            >
+              {{ tx.type === "income" ? "+" : "-"
+              }}{{ tx.amount | currencyFormat: symbol() }}
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <app-empty-state
+        title="No recent transactions"
+        message="Transactions will appear here once you add them."
+      />
+    }
+  </div>
+}

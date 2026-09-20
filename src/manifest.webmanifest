@@ -1,0 +1,11 @@
+{
+  "name": "LifeOS — Personal Intelligence Dashboard",
+  "short_name": "LifeOS",
+  "description": "Your personal intelligence dashboard for managing life, transactions, insights, and analytics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": []
+}

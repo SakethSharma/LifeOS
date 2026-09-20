@@ -1,0 +1,143 @@
+<section class="settings-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Application Preferences</span>
+
+      <h1>Settings</h1>
+
+      <p>
+        Configure your LifeOS preferences and personal dashboard experience.
+      </p>
+    </div>
+  </header>
+
+  <div class="settings-layout">
+    <section class="settings-card">
+      <div class="section-heading">
+        <div class="section-icon">◐</div>
+
+        <div>
+          <h2>Appearance</h2>
+
+          <p>Customize how LifeOS looks on your device.</p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <h3>Theme</h3>
+
+          <p>Choose the appearance of the application.</p>
+        </div>
+
+        <select class="setting-select" aria-label="Theme">
+          <option value="system">System Default</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-heading">
+        <div class="section-icon">₹</div>
+
+        <div>
+          <h2>Regional Preferences</h2>
+
+          <p>Configure currency and date display preferences.</p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <h3>Currency</h3>
+
+          <p>Currency used when displaying transaction amounts.</p>
+        </div>
+
+        <select class="setting-select" aria-label="Currency">
+          <option value="INR">INR (₹)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="JPY">JPY (¥)</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <h3>Date Format</h3>
+
+          <p>Format used for dates throughout the application.</p>
+        </div>
+
+        <select class="setting-select" aria-label="Date format">
+          <option value="MMM d, yyyy">Sep 20, 2026</option>
+          <option value="d MMM yyyy">20 Sep 2026</option>
+          <option value="yyyy-MM-dd">2026-09-20</option>
+          <option value="dd/MM/yyyy">20/09/2026</option>
+          <option value="MM/dd/yyyy">09/20/2026</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-heading">
+        <div class="section-icon">▦</div>
+
+        <div>
+          <h2>Dashboard Preferences</h2>
+
+          <p>Configure the default period used in your dashboard.</p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <h3>Default Date Range</h3>
+
+          <p>Initial date range selected when opening the dashboard.</p>
+        </div>
+
+        <select class="setting-select" aria-label="Default date range">
+          <option value="this_month">This Month</option>
+          <option value="previous_month">Previous Month</option>
+          <option value="last_3_months">Last 3 Months</option>
+          <option value="last_6_months">Last 6 Months</option>
+          <option value="this_year">This Year</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-heading">
+        <div class="section-icon">⌑</div>
+
+        <div>
+          <h2>Privacy and Data</h2>
+
+          <p>Understand how your LifeOS data is managed.</p>
+        </div>
+      </div>
+
+      <div class="privacy-note">
+        <strong>Local-first storage</strong>
+
+        <p>
+          Your transactions are designed to be stored locally in your browser
+          using IndexedDB.
+        </p>
+      </div>
+
+      <div class="privacy-note">
+        <strong>External synchronization</strong>
+
+        <p>
+          Cloud synchronization is not enabled by default. Future integrations
+          should require explicit configuration.
+        </p>
+      </div>
+    </section>
+  </div>
+</section>

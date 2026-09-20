@@ -1,0 +1,26 @@
+<div class="empty-state">
+  <div class="empty-icon">
+    <svg
+      [attr.data-lucide]="icon"
+      width="48"
+      height="48"
+      stroke="currentColor"
+      fill="none"
+      stroke-width="1.5"
+    >
+      <ng-content></ng-content>
+    </svg>
+  </div>
+
+  @if (title) {
+    <h3 class="empty-title">{{ title }}</h3>
+  }
+
+  @if (message) {
+    <p class="empty-message">{{ message }}</p>
+  }
+
+  <div class="empty-action">
+    <ng-content select="[action]"></ng-content>
+  </div>
+</div>

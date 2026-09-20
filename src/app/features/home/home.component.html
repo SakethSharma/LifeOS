@@ -1,0 +1,454 @@
+<div class="home-page">
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">Personal Intelligence Dashboard</div>
+
+      <h1 class="hero-title">
+        Understand your data.<br />
+        Make better decisions.
+      </h1>
+
+      <p class="hero-desc">
+        LifeOS helps you track personal finances and discover patterns through
+        analytics. Your data stays local, your insights stay yours.
+      </p>
+
+      <div class="hero-actions">
+        <a routerLink="/dashboard" class="btn btn-lg"> Open Dashboard </a>
+
+        <button class="btn btn-lg btn-secondary" (click)="exploreDemo()">
+          Explore Demo
+        </button>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="preview-card">
+        <div class="preview-header">
+          <div class="preview-title">Monthly Overview</div>
+
+          <div class="preview-badge">Sep 2026</div>
+        </div>
+
+        <div class="preview-stats">
+          <div class="preview-stat">
+            <div class="preview-stat-label">Income</div>
+
+            <div class="preview-stat-value text-income">+₹48,500</div>
+          </div>
+
+          <div class="preview-stat">
+            <div class="preview-stat-label">Expenses</div>
+
+            <div class="preview-stat-value text-expense">-₹32,140</div>
+          </div>
+
+          <div class="preview-stat">
+            <div class="preview-stat-label">Savings</div>
+
+            <div class="preview-stat-value text-success">₹16,360</div>
+          </div>
+        </div>
+
+        <div class="preview-chart">
+          <div class="bar-group">
+            <div class="bar bar-income" style="height: 70%"></div>
+            <div class="bar bar-income" style="height: 85%"></div>
+            <div class="bar bar-income" style="height: 60%"></div>
+            <div class="bar bar-income" style="height: 90%"></div>
+            <div class="bar bar-income" style="height: 75%"></div>
+            <div class="bar bar-income" style="height: 80%"></div>
+          </div>
+
+          <div class="bar-group">
+            <div class="bar bar-expense" style="height: 45%"></div>
+            <div class="bar bar-expense" style="height: 55%"></div>
+            <div class="bar bar-expense" style="height: 40%"></div>
+            <div class="bar bar-expense" style="height: 60%"></div>
+            <div class="bar bar-expense" style="height: 50%"></div>
+            <div class="bar bar-expense" style="height: 65%"></div>
+          </div>
+        </div>
+
+        <div class="preview-footer">
+          <div class="preview-tx">
+            <span class="tx-dot tx-income"></span>
+            <span class="tx-label">Salary</span>
+            <span class="tx-amount text-income">+₹48,500</span>
+          </div>
+
+          <div class="preview-tx">
+            <span class="tx-dot tx-expense"></span>
+            <span class="tx-label">Food</span>
+            <span class="tx-amount text-expense">-₹4,200</span>
+          </div>
+
+          <div class="preview-tx">
+            <span class="tx-dot tx-expense"></span>
+            <span class="tx-label">Transport</span>
+            <span class="tx-amount text-expense">-₹2,100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <h2 class="section-title">
+      Everything you need to understand your finances
+    </h2>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon feature-icon-blue">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M17 1l4 4-4 4" />
+            <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+            <path d="M7 23l-4-4 4-4" />
+            <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+          </svg>
+        </div>
+
+        <h3 class="feature-title">Personal Data Tracking</h3>
+
+        <p class="feature-desc">
+          Record income and expenses with categories, dates, and notes. Full
+          CRUD with search, filter, and sort.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon feature-icon-green">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 3v18h18" />
+            <path d="M18 17V9" />
+            <path d="M13 17V5" />
+            <path d="M8 17v-3" />
+          </svg>
+        </div>
+
+        <h3 class="feature-title">Interactive Analytics</h3>
+
+        <p class="feature-desc">
+          Visualize spending patterns with bar, line, and donut charts. Compare
+          periods and track trends.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon feature-icon-amber">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M12 2a3 3 0 0 0-3 3v1.5a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3z"
+            />
+            <path
+              d="M12 14.5a3 3 0 0 0-3 3V19a3 3 0 0 0 6 0v-1.5a3 3 0 0 0-3-3z"
+            />
+            <path d="M5 8a3 3 0 0 0 0 6h1.5a3 3 0 0 0 0-6H5z" />
+            <path d="M17.5 8a3 3 0 0 0 0 6H19a3 3 0 0 0 0-6h-1.5z" />
+          </svg>
+        </div>
+
+        <h3 class="feature-title">AI-Powered Insights</h3>
+
+        <p class="feature-desc">
+          Ask questions about your spending and get structured analysis. Local
+          analysis now, AI provider integration ready.
+        </p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon feature-icon-purple">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+        </div>
+
+        <h3 class="feature-title">Local-First Privacy</h3>
+
+        <p class="feature-desc">
+          Your data is stored in your browser via IndexedDB. No server, no
+          tracking, no permissions required.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dashboard Preview -->
+  <section class="preview-section">
+    <h2 class="section-title">A closer look at the dashboard</h2>
+
+    <div class="preview-grid">
+      <div class="card preview-summary-card">
+        <div class="card-title">Total Balance</div>
+
+        <div class="preview-big-value">₹16,360</div>
+
+        <div class="preview-trend text-success">+12% from last month</div>
+      </div>
+
+      <div class="card preview-chart-card">
+        <div class="card-title">Spending Trend</div>
+
+        <div class="preview-line-chart">
+          <svg viewBox="0 0 300 100" class="line-chart-svg">
+            <polyline
+              points="10,70 50,50 90,60 130,30 170,45 210,20 250,35 290,25"
+              fill="none"
+              stroke="var(--primary)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+            <polyline
+              points="10,70 50,50 90,60 130,30 170,45 210,20 250,35 290,25"
+              fill="url(#grad)"
+              stroke="none"
+            />
+
+            <defs>
+              <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="0%"
+                  stop-color="var(--primary)"
+                  stop-opacity="0.2"
+                />
+
+                <stop
+                  offset="100%"
+                  stop-color="var(--primary)"
+                  stop-opacity="0"
+                />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card preview-ai-card">
+        <div class="card-title">AI Insight</div>
+
+        <div class="preview-ai-content">
+          <div class="ai-badge">Local Analysis</div>
+
+          <p>
+            Your savings rate improved to 33.7% this month. Top spending
+            category: Food at ₹4,200 (13% of expenses).
+          </p>
+        </div>
+      </div>
+
+      <div class="card preview-tx-card">
+        <div class="card-title">Recent Transactions</div>
+
+        <div class="preview-tx-list">
+          <div class="preview-tx-row">
+            <span class="tx-dot tx-income"></span>
+            <span>Salary</span>
+            <span class="text-income">+₹48,500</span>
+          </div>
+
+          <div class="preview-tx-row">
+            <span class="tx-dot tx-expense"></span>
+            <span>Rent</span>
+            <span class="text-expense">-₹12,000</span>
+          </div>
+
+          <div class="preview-tx-row">
+            <span class="tx-dot tx-expense"></span>
+            <span>Groceries</span>
+            <span class="text-expense">-₹3,500</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy -->
+  <section class="privacy">
+    <h2 class="section-title">Your data stays on your device</h2>
+
+    <div class="privacy-grid">
+      <div class="privacy-item">
+        <div class="privacy-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+
+        <div>
+          <h4>Local Storage</h4>
+
+          <p>
+            V1 stores all data locally in your browser using IndexedDB. Nothing
+            is sent to a server.
+          </p>
+        </div>
+      </div>
+
+      <div class="privacy-item">
+        <div class="privacy-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+          </svg>
+        </div>
+
+        <div>
+          <h4>No Permissions Required</h4>
+
+          <p>
+            LifeOS does not request microphone, camera, location, contacts, or
+            notification access.
+          </p>
+        </div>
+      </div>
+
+      <div class="privacy-item">
+        <div class="privacy-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+            />
+          </svg>
+        </div>
+
+        <div>
+          <h4>Not Auto-Synced</h4>
+
+          <p>
+            Data is not automatically synchronized to other devices. Clearing
+            browser data may remove it.
+          </p>
+        </div>
+      </div>
+
+      <div class="privacy-item">
+        <div class="privacy-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+          </svg>
+        </div>
+
+        <div>
+          <h4>Cloud Sync (Future)</h4>
+
+          <p>
+            Optional cloud synchronization can be added in a future version. For
+            now, everything is local.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="logo-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 3v18h18" />
+            <path d="M7 16l4-6 4 3 5-8" />
+          </svg>
+        </div>
+
+        <span> LifeOS </span>
+      </div>
+
+      <div class="footer-info">
+        <span>v1.0.0</span>
+        <span>·</span>
+        <span>Local-first personal analytics</span>
+        <span>·</span>
+        <span>Your data never leaves your device</span>
+      </div>
+    </div>
+  </footer>
+</div>

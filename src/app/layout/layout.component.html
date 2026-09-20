@@ -1,0 +1,153 @@
+<div class="app-layout" [class.sidebar-open]="sidebarOpen()">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M3 3v18h18" />
+            <path d="M7 16l4-6 4 3 5-8" />
+          </svg>
+        </div>
+
+        <span class="logo-text">LifeOS</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      @for (item of navItems; track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          class="nav-item"
+          (click)="closeSidebar()"
+        >
+          <span class="nav-icon" [innerHTML]="getIcon(item.icon)"></span>
+
+          <span class="nav-label">
+            {{ item.label }}
+          </span>
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="version">v1.0.0</div>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  @if (sidebarOpen()) {
+    <div class="sidebar-overlay" (click)="closeSidebar()"></div>
+  }
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- Header -->
+    <header class="header">
+      <button
+        type="button"
+        class="menu-toggle"
+        (click)="toggleSidebar()"
+        aria-label="Toggle menu"
+      >
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      <div class="header-title">
+        {{ pageTitle() }}
+      </div>
+
+      <div class="header-actions">
+        <button
+          type="button"
+          class="icon-btn"
+          (click)="toggleTheme()"
+          aria-label="Toggle theme"
+        >
+          @if (isDark()) {
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          } @else {
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M21 12.79A9 9 0 1 1 11.21 3
+                7 7 0 0 0 21 12.79z"
+              />
+            </svg>
+          }
+        </button>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main class="content">
+      <router-outlet></router-outlet>
+    </main>
+
+    <!-- Bottom navigation for mobile -->
+    <nav class="bottom-nav">
+      @for (item of bottomNavItems; track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          class="bottom-nav-item"
+        >
+          <span [innerHTML]="getIcon(item.icon)"></span>
+
+          <span class="bottom-nav-label">
+            {{ item.label }}
+          </span>
+        </a>
+      }
+    </nav>
+  </div>
+</div>
