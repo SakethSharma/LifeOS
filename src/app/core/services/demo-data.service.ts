@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { Transaction } from '../models/transaction.model';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS } from '../models/transaction.model';
+import { toDateString } from '../utilities/format.util';
 
 @Injectable({ providedIn: 'root' })
 export class DemoDataService {
@@ -34,7 +35,8 @@ export class DemoDataService {
       const monthsBack = Math.floor(Math.random() * 6);
       const day = Math.floor(Math.random() * 28) + 1;
       const date = new Date(now.getFullYear(), now.getMonth() - monthsBack, day);
-      const dateStr = date.toISOString().slice(0, 10);
+      // Local date: toISOString() would shift to UTC and can move a transaction into the previous day/month.
+      const dateStr = toDateString(date);
 
       const isIncome = Math.random() < 0.2;
       const type = isIncome ? 'income' : 'expense';

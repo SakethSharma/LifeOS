@@ -9,6 +9,61 @@ import {
   DateRange,
 } from '../models/analytics.model';
 import { getMonthKey, getMonthLabel, getDayLabel, isInRange, getPreviousDateRange } from './date.util';
+import { formatCurrency, toDateString } from './format.util';
+
+/** Newest first: by date, then time of day, then creation time. */
+export function sortRecentFirst(transactions: Transaction[]): Transaction[] {
+  return [...transactions].sort(
+    (a, b) =>
+      b.date.localeCompare(a.date) ||
+      (b.time ?? '').localeCompare(a.time ?? '') ||
+      b.createdAt.localeCompare(a.createdAt),
+  );
+}
+
+export function getRecentTransactions(transactions: Transaction[], limit: number): Transaction[] {
+  return sortRecentFirst(transactions).slice(0, limit);
+}
+
+/**
+ * One-sentence summary of the given transactions (savings + top expense category),
+ * computed only from those transactions. Returns null when there is nothing to
+ * say, so callers can show an empty state instead of made-up text.
+ */
+export function buildSpendingInsight(transactions: Transaction[], symbol: string): string | null {
+  if (transactions.length === 0) {
+    return null;
+  }
+
+  const summary = calculateSummary(transactions);
+  const sentences: string[] = [];
+
+  if (summary.totalIncome > 0) {
+    if (summary.netBalance >= 0) {
+      const rate = Number(((summary.netBalance / summary.totalIncome) * 100).toFixed(1));
+      sentences.push(`You saved ${rate}% of your income this month.`);
+    } else {
+      sentences.push(
+        `Your expenses exceeded your income by ${formatCurrency(-summary.netBalance, symbol)} this month.`,
+      );
+    }
+  } else if (summary.totalExpenses > 0) {
+    sentences.push(
+      `No income recorded this month; expenses total ${formatCurrency(summary.totalExpenses, symbol)}.`,
+    );
+  }
+
+  const [top] = aggregateByCategory(filterByType(transactions, 'expense'));
+
+  if (top) {
+    const share = Number(top.percentage.toFixed(1));
+    sentences.push(
+      `Top spending category: ${top.category} at ${formatCurrency(top.amount, symbol)} (${share}% of expenses).`,
+    );
+  }
+
+  return sentences.length > 0 ? sentences.join(' ') : null;
+}
 
 export function filterByDateRange(transactions: Transaction[], range: DateRange): Transaction[] {
   return transactions.filter((t) => isInRange(t.date, range.start, range.end));
@@ -115,7 +170,8 @@ export function aggregateDaily(transactions: Transaction[], range: DateRange): D
 
   const cursor = new Date(range.start);
   while (cursor <= range.end) {
-    const key = cursor.toISOString().slice(0, 10);
+    // Local date, matching how transaction dates are stored (toISOString shifts to UTC).
+    const key = toDateString(cursor);
     map.set(key, {
       date: key,
       label: getDayLabel(new Date(cursor)),

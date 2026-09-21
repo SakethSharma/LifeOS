@@ -52,9 +52,7 @@ export class DashboardComponent implements OnInit {
   removingDemo = signal(false);
   showRemoveDemoConfirm = signal(false);
 
-  hasDemoData = computed(() =>
-    this.transactions().some((t) => t.isDemo === true),
-  );
+  hasDemoData = this.transactionService.hasDemoData;
 
   selectedPreset = signal<DateRangePreset>("this_month");
 
@@ -128,7 +126,15 @@ export class DashboardComponent implements OnInit {
 
   topCategories = computed(() => this.categoryData().slice(0, 5));
 
-  recentTransactions = computed(() => this.filteredTransactions().slice(0, 8));
+  recentTransactions = computed(() =>
+    this.analyticsService.getRecent(this.filteredTransactions(), 8),
+  );
+
+  // The 6-month charts ignore the selected range, so they can be empty even
+  // when the range has transactions (e.g. "This Year" with only old data).
+  hasMonthlyData = computed(() =>
+    this.monthlyData().some((month) => month.income > 0 || month.expenses > 0),
+  );
 
   ngOnInit(): void {
     const settings = this.settingsService.current;

@@ -117,13 +117,20 @@
         <div class="card-title">Income vs Expenses</div>
       </div>
 
-      <app-chart
-        type="bar"
-        [labels]="monthlyLabels()"
-        [series]="monthlySeries()"
-        [height]="280"
-        [colors]="['#10b981', '#ef4444']"
-      />
+      @if (hasMonthlyData()) {
+        <app-chart
+          type="bar"
+          [labels]="monthlyLabels()"
+          [series]="monthlySeries()"
+          [height]="280"
+          [colors]="['#10b981', '#ef4444']"
+        />
+      } @else {
+        <app-empty-state
+          title="No data"
+          message="No income or expenses in the last 6 months."
+        />
+      }
     </div>
 
     <div class="card">
@@ -155,15 +162,22 @@
         <div class="card-title">Spending Trend</div>
       </div>
 
-      <app-chart
-        type="line"
-        [labels]="trendLabels()"
-        [series]="trendSeries()"
-        [height]="260"
-        [colors]="['#ef4444']"
-        [smooth]="true"
-        [areaStyle]="true"
-      />
+      @if (hasMonthlyData()) {
+        <app-chart
+          type="line"
+          [labels]="trendLabels()"
+          [series]="trendSeries()"
+          [height]="260"
+          [colors]="['#ef4444']"
+          [smooth]="true"
+          [areaStyle]="true"
+        />
+      } @else {
+        <app-empty-state
+          title="No spending data available"
+          message="No expenses in the last 6 months."
+        />
+      }
     </div>
 
     <div class="card">

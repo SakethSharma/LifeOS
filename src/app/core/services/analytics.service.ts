@@ -9,6 +9,8 @@ import {
   aggregateDaily,
   buildAnalyticsSummary,
   buildChartData,
+  getRecentTransactions,
+  buildSpendingInsight,
 } from '../utilities/analytics.util';
 
 @Injectable({ providedIn: 'root' })
@@ -39,5 +41,13 @@ export class AnalyticsService {
 
   getAnalyticsSummary(transactions: Transaction[], range: DateRange) {
     return buildAnalyticsSummary(transactions, range);
+  }
+
+  getRecent(transactions: Transaction[], limit: number): Transaction[] {
+    return getRecentTransactions(transactions, limit);
+  }
+
+  getInsight(transactions: Transaction[], symbol: string): string | null {
+    return buildSpendingInsight(transactions, symbol);
   }
 }

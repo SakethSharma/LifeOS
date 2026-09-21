@@ -261,48 +261,67 @@
       <div class="card preview-summary-card">
         <div class="card-title">Total Balance</div>
 
-        <div class="preview-big-value">₹16,360</div>
+        <div class="preview-big-value">
+          {{ totalBalance() | currencyFormat: symbol() }}
+        </div>
 
-        <div class="preview-trend text-success">+12% from last month</div>
+        @if (hasTransactions()) {
+          <div
+            class="preview-trend"
+            [class.text-success]="summary().netBalance >= 0"
+            [class.text-error]="summary().netBalance < 0"
+          >
+            This month: {{ summary().netBalance >= 0 ? "+" : ""
+            }}{{ summary().netBalance | currencyFormat: symbol() }}
+          </div>
+        } @else {
+          <div class="preview-empty-text">No transactions yet</div>
+        }
       </div>
 
       <div class="card preview-chart-card">
         <div class="card-title">Spending Trend</div>
 
-        <div class="preview-line-chart">
-          <svg viewBox="0 0 300 100" class="line-chart-svg">
-            <polyline
-              points="10,70 50,50 90,60 130,30 170,45 210,20 250,35 290,25"
-              fill="none"
-              stroke="var(--primary)"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
+        @if (hasTrendData()) {
+          <div class="preview-line-chart">
+            <svg viewBox="0 0 300 100" class="line-chart-svg">
+              <polyline
+                [attr.points]="trendPoints()"
+                fill="none"
+                stroke="var(--primary)"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
 
-            <polyline
-              points="10,70 50,50 90,60 130,30 170,45 210,20 250,35 290,25"
-              fill="url(#grad)"
-              stroke="none"
-            />
+              <polyline
+                [attr.points]="trendAreaPoints()"
+                fill="url(#grad)"
+                stroke="none"
+              />
 
-            <defs>
-              <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stop-color="var(--primary)"
-                  stop-opacity="0.2"
-                />
+              <defs>
+                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stop-color="var(--primary)"
+                    stop-opacity="0.2"
+                  />
 
-                <stop
-                  offset="100%"
-                  stop-color="var(--primary)"
-                  stop-opacity="0"
-                />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+                  <stop
+                    offset="100%"
+                    stop-color="var(--primary)"
+                    stop-opacity="0"
+                  />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          <div class="preview-empty-text">Monthly expenses, last 6 months</div>
+        } @else {
+          <div class="preview-empty-text">No spending data available</div>
+        }
       </div>
 
       <div class="card preview-ai-card">
@@ -311,10 +330,11 @@
         <div class="preview-ai-content">
           <div class="ai-badge">Local Analysis</div>
 
-          <p>
-            Your savings rate improved to 33.7% this month. Top spending
-            category: Food at ₹4,200 (13% of expenses).
-          </p>
+          @if (insight(); as text) {
+            <p>{{ text }}</p>
+          } @else {
+            <p>Add transactions to see insights.</p>
+          }
         </div>
       </div>
 
@@ -322,23 +342,27 @@
         <div class="card-title">Recent Transactions</div>
 
         <div class="preview-tx-list">
-          <div class="preview-tx-row">
-            <span class="tx-dot tx-income"></span>
-            <span>Salary</span>
-            <span class="text-income">+₹48,500</span>
-          </div>
+          @for (tx of latestTransactions(); track tx.id) {
+            <div class="preview-tx-row">
+              <span
+                class="tx-dot"
+                [class.tx-income]="tx.type === 'income'"
+                [class.tx-expense]="tx.type === 'expense'"
+              ></span>
 
-          <div class="preview-tx-row">
-            <span class="tx-dot tx-expense"></span>
-            <span>Rent</span>
-            <span class="text-expense">-₹12,000</span>
-          </div>
+              <span>{{ tx.description }}</span>
 
-          <div class="preview-tx-row">
-            <span class="tx-dot tx-expense"></span>
-            <span>Groceries</span>
-            <span class="text-expense">-₹3,500</span>
-          </div>
+              <span
+                [class.text-income]="tx.type === 'income'"
+                [class.text-expense]="tx.type === 'expense'"
+              >
+                {{ tx.type === "income" ? "+" : "-"
+                }}{{ tx.amount | currencyFormat: symbol() }}
+              </span>
+            </div>
+          } @empty {
+            <div class="preview-empty-text">No transactions yet</div>
+          }
         </div>
       </div>
     </div>
