@@ -1,0 +1,54 @@
+<div class="card summary-card">
+  <app-collapsible-section [(expanded)]="expanded">
+    <h3 collapsible-header class="summary-title">Salary Summary</h3>
+
+    @if (isEstimate(result().salary.basicAnnual.source) || isEstimate(result().salary.annualCtc.source)) {
+      <p class="estimate-note">
+        Estimated calculation based on the information you provided. Add your
+        exact salary breakup for a more precise result.
+      </p>
+    }
+
+    <div class="summary-rows">
+      <div class="summary-row">
+        <span>Annual CTC / Salary</span>
+        <strong>{{ result().takeHome.annualCtc | currencyFormat: symbol() }}</strong>
+      </div>
+
+      <div class="summary-row">
+        <span>Monthly CTC / Salary</span>
+        <strong>{{ result().takeHome.monthlyCtc | currencyFormat: symbol() }}</strong>
+      </div>
+
+      <div class="summary-row">
+        <span>{{ pfLabel() }}</span>
+        <strong>{{ result().takeHome.employeePfMonthly | currencyFormat: symbol() }} / month</strong>
+      </div>
+
+      <div class="summary-row">
+        <span>Income Tax</span>
+        <strong>{{ result().tax.monthlyTax | currencyFormat: symbol() }} / month</strong>
+      </div>
+
+      @if (result().takeHome.professionalTaxAnnual > 0) {
+        <div class="summary-row">
+          <span>Professional Tax</span>
+          <strong>{{ result().takeHome.professionalTaxMonthly | currencyFormat: symbol() }} / month</strong>
+        </div>
+      }
+
+      <div class="summary-row">
+        <span>{{ otherDeductionsLabel() }}</span>
+        <strong>{{ result().takeHome.otherDeductionsMonthly | currencyFormat: symbol() }} / month</strong>
+      </div>
+    </div>
+
+    <div class="take-home-block">
+      <div class="take-home-label">Estimated Take Home</div>
+      <div class="take-home-value">{{ result().takeHome.monthlyTakeHome | currencyFormat: symbol() }} / month</div>
+      <div class="take-home-annual">
+        {{ result().takeHome.annualTakeHome | currencyFormat: symbol() }} / year
+      </div>
+    </div>
+  </app-collapsible-section>
+</div>

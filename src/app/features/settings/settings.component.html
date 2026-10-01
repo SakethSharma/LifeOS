@@ -112,6 +112,39 @@
 
     <section class="settings-card">
       <div class="section-heading">
+        <div class="section-icon">✦</div>
+
+        <div>
+          <h2>AI Provider</h2>
+
+          <p>
+            AI Insights and the salary document reader use your own AI provider
+            account.
+          </p>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <h3>{{ aiStatusText() }}</h3>
+
+          <p>
+            @if (aiConnection(); as c) {
+              {{ aiProviderLabel() }} · <span class="ai-key-hint">{{ c.keyHint }}</span>
+            } @else {
+              Connect an AI provider to ask LifeOS questions.
+            }
+          </p>
+        </div>
+
+        <a class="btn btn-secondary" routerLink="/ai-insights" [fragment]="aiConnectFragment">
+          {{ aiConnection() ? "Manage AI" : "Connect AI" }}
+        </a>
+      </div>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-heading">
         <div class="section-icon">⌑</div>
 
         <div>

@@ -1,0 +1,210 @@
+<div class="question-card">
+  <h3 class="question-prompt">{{ meta().prompt }}</h3>
+
+  <div class="yes-no" role="group" [attr.aria-label]="meta().title">
+    <button
+      type="button"
+      class="yn-btn"
+      [class.active]="answer().status === 'answered_yes'"
+      (click)="answerYes()"
+    >
+      Yes
+    </button>
+
+    <button
+      type="button"
+      class="yn-btn"
+      [class.active]="answer().status === 'answered_no'"
+      (click)="answerNo()"
+    >
+      No
+    </button>
+  </div>
+
+  @if (answer().status === "answered_yes") {
+    <div class="question-fields">
+      @switch (meta().id) {
+        @case ("hra") {
+          <div class="form-group">
+            <label class="form-label" for="tq-hra-received"
+              >HRA received (₹/year)</label
+            >
+            <input
+              id="tq-hra-received"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.hraReceivedAnnual)"
+              (input)="onField('hraReceivedAnnual', $event)"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="tq-rent-paid"
+              >Rent paid (₹/year)</label
+            >
+            <input
+              id="tq-rent-paid"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.rentPaidAnnual)"
+              (input)="onField('rentPaidAnnual', $event)"
+            />
+          </div>
+
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              [checked]="answer().fields.isMetro ?? false"
+              (change)="onToggle('isMetro', $event)"
+            />
+            I live in a metro city (Delhi, Mumbai, Kolkata, Chennai, Bangalore,
+            Hyderabad)
+          </label>
+        }
+
+        @case ("section80C") {
+          <div class="form-group">
+            <label class="form-label" for="tq-80c">
+              Total Section 80C investments (₹/year, cap ₹1,50,000)
+            </label>
+            <input
+              id="tq-80c"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.section80CAmount)"
+              (input)="onField('section80CAmount', $event)"
+            />
+          </div>
+        }
+
+        @case ("section80D") {
+          <div class="form-group">
+            <label class="form-label" for="tq-80d-self"
+              >Health insurance — self &amp; family (₹/year)</label
+            >
+            <input
+              id="tq-80d-self"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.section80DSelfAmount)"
+              (input)="onField('section80DSelfAmount', $event)"
+            />
+          </div>
+
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              [checked]="answer().fields.section80DSelfSenior ?? false"
+              (change)="onToggle('section80DSelfSenior', $event)"
+            />
+            You or your spouse is a senior citizen
+          </label>
+
+          <div class="form-group">
+            <label class="form-label" for="tq-80d-parents"
+              >Health insurance — parents (₹/year)</label
+            >
+            <input
+              id="tq-80d-parents"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.section80DParentsAmount)"
+              (input)="onField('section80DParentsAmount', $event)"
+            />
+          </div>
+
+          <label class="checkbox-row">
+            <input
+              type="checkbox"
+              [checked]="answer().fields.section80DParentsSenior ?? false"
+              (change)="onToggle('section80DParentsSenior', $event)"
+            />
+            Your parents are senior citizens
+          </label>
+        }
+
+        @case ("homeLoanInterest") {
+          <div class="form-group">
+            <label class="form-label" for="tq-homeloan">
+              Home loan interest paid (₹/year, cap ₹2,00,000)
+            </label>
+            <input
+              id="tq-homeloan"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.homeLoanInterestAmount)"
+              (input)="onField('homeLoanInterestAmount', $event)"
+            />
+          </div>
+        }
+
+        @case ("educationLoanInterest") {
+          <div class="form-group">
+            <label class="form-label" for="tq-eduloan"
+              >Education loan interest paid (₹/year)</label
+            >
+            <input
+              id="tq-eduloan"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.educationLoanInterestAmount)"
+              (input)="onField('educationLoanInterestAmount', $event)"
+            />
+          </div>
+        }
+
+        @case ("nps") {
+          <div class="form-group">
+            <label class="form-label" for="tq-nps">
+              NPS contribution — 80CCD(1B) (₹/year, cap ₹50,000)
+            </label>
+            <input
+              id="tq-nps"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.npsAmount)"
+              (input)="onField('npsAmount', $event)"
+            />
+          </div>
+        }
+
+        @case ("donations") {
+          <div class="form-group">
+            <label class="form-label" for="tq-donation"
+              >Donation amount (₹/year)</label
+            >
+            <input
+              id="tq-donation"
+              class="form-control"
+              type="text"
+              inputmode="numeric"
+              [value]="display(answer().fields.donationAmount)"
+              (input)="onField('donationAmount', $event)"
+            />
+            <p class="field-hint">
+              Estimated at 50% eligibility — actual eligibility depends on the
+              donee category. Confirm the exact figure from your donation
+              receipt / CA if it matters for filing.
+            </p>
+          </div>
+        }
+      }
+    </div>
+  } @else if (answer().status === "answered_no") {
+    <p class="skip-note">
+      Marked as not applicable — excluded from your calculation.
+    </p>
+  } @else {
+    <p class="skip-note">
+      Not answered yet — this is fine, it will simply be excluded.
+    </p>
+  }
+</div>

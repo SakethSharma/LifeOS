@@ -7,6 +7,7 @@ import { getDateRange, getMonthLabel } from "../../core/utilities/date.util";
 import { CurrencyFormatPipe } from "../../shared/pipes/currency-format.pipe";
 import { AppFooterComponent } from "../../shared/components/app-footer/app-footer.component";
 import { EmiCalculatorComponent } from "./emi-calculator/emi-calculator.component";
+import { SalaryTaxCalculatorComponent } from "../salary-tax/components/salary-tax-calculator/salary-tax-calculator.component";
 
 @Component({
   selector: "app-home",
@@ -17,6 +18,7 @@ import { EmiCalculatorComponent } from "./emi-calculator/emi-calculator.componen
     RouterLink,
     CurrencyFormatPipe,
     EmiCalculatorComponent,
+    SalaryTaxCalculatorComponent,
     AppFooterComponent,
   ],
 })

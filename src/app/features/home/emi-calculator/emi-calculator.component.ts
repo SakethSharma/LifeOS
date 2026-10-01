@@ -2,6 +2,7 @@ import { Component, DestroyRef, computed, inject, signal } from "@angular/core";
 import { calculateEmi, EmiResult } from "../../../core/utilities/emi.util";
 import { formatCurrency } from "../../../core/utilities/format.util";
 import { amountToIndianWords } from "../../../core/utilities/number-words.util";
+import { CollapsibleSectionComponent } from "../../../shared/components/collapsible-section/collapsible-section.component";
 
 type TenureUnit = "years" | "months";
 
@@ -13,10 +14,13 @@ const MAX_TENURE_MONTHS = 480;
   selector: "app-emi-calculator",
   templateUrl: "./emi-calculator.component.html",
   styleUrl: "./emi-calculator.component.scss",
+  imports: [CollapsibleSectionComponent],
 })
 export class EmiCalculatorComponent {
   private readonly destroyRef = inject(DestroyRef);
   private timer: ReturnType<typeof setTimeout> | undefined;
+
+  expanded = signal(true);
 
   principal = signal<number | null>(null);
   rate = signal("");

@@ -1,0 +1,113 @@
+<div class="card salary-input-card">
+  <div class="form-group">
+    <label class="form-label" for="st-ctc">Annual CTC / Salary (₹)</label>
+
+    <input
+      id="st-ctc"
+      class="form-control"
+      type="text"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      autocomplete="off"
+      placeholder="e.g. 12,00,000"
+      [value]="ctcDisplay()"
+      (input)="onField('annualCtc', $event)"
+    />
+
+    <p class="field-hint">
+      Just enter your CTC — LifeOS will estimate the rest. Assumptions used for
+      the estimate are shown with the result.
+    </p>
+  </div>
+
+  <button type="button" class="btn-link" (click)="toggleBreakup()">
+    {{ showBreakup() ? "Hide exact salary breakup" : "I know my exact salary breakup" }}
+  </button>
+
+  @if (showBreakup()) {
+    <div class="breakup-grid">
+      <div class="form-group">
+        <label class="form-label" for="st-basic">Basic Salary (₹/year)</label>
+        <input
+          id="st-basic"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="basicDisplay()"
+          (input)="onField('basicAnnual', $event)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="st-hra">HRA (₹/year)</label>
+        <input
+          id="st-hra"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="hraDisplay()"
+          (input)="onField('hraAnnual', $event)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="st-special">Special Allowance (₹/year)</label>
+        <input
+          id="st-special"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="specialDisplay()"
+          (input)="onField('specialAllowanceAnnual', $event)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="st-pf">Employee PF (₹/year)</label>
+        <input
+          id="st-pf"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="pfDisplay()"
+          (input)="onField('employeePfAnnual', $event)"
+        />
+        <p class="field-hint">Leave blank to use the estimated PF instead.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="st-prof-tax">Professional Tax (₹/year)</label>
+        <input
+          id="st-prof-tax"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="professionalTaxDisplay()"
+          (input)="onField('professionalTaxAnnual', $event)"
+        />
+        <p class="field-hint">
+          Deducted from your payslip and, under the Old Regime, also deductible
+          from taxable income (Section 16(iii)).
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="st-other">Other Deductions (₹/year)</label>
+        <input
+          id="st-other"
+          class="form-control"
+          type="text"
+          inputmode="numeric"
+          [value]="otherDisplay()"
+          (input)="onField('otherDeductionsAnnual', $event)"
+        />
+        <p class="field-hint">
+          Loan EMIs, meal cards, etc. deducted from your salary. Leave blank if
+          you don't know — shown as "Not provided", never guessed. This does not
+          reduce taxable income; for health insurance premiums, use the Old
+          Regime's Section 80D question instead so it actually reduces your tax.
+        </p>
+      </div>
+    </div>
+  }
+</div>

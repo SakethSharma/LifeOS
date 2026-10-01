@@ -1,0 +1,84 @@
+:host {
+  display: block;
+}
+
+.summary-card {
+  padding: 1.5rem;
+}
+
+.summary-title {
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.estimate-note {
+  margin-bottom: 1rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.summary-rows {
+  display: grid;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9375rem;
+}
+
+.summary-row span {
+  color: var(--text-secondary);
+}
+
+.summary-row strong {
+  color: var(--text-primary);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.take-home-block {
+  padding: 1.25rem;
+  background: var(--primary-light);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.take-home-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.take-home-value {
+  margin: 0.25rem 0;
+  color: var(--primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.take-home-annual {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 480px) {
+  .summary-card {
+    padding: 1rem;
+  }
+
+  .take-home-value {
+    font-size: 1.5rem;
+  }
+}

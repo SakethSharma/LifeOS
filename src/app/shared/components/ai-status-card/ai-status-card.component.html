@@ -1,0 +1,14 @@
+<div class="ai-status-card" [class.info]="tone() === 'info'" role="alert">
+  <span class="ai-status-icon" aria-hidden="true">{{ view().icon }}</span>
+
+  <div class="ai-status-body">
+    <p class="ai-status-title">{{ view().title }}</p>
+    <p class="ai-status-message">{{ view().message }}</p>
+
+    <ng-content></ng-content>
+
+    <button type="button" class="btn btn-sm ai-status-action" (click)="action.emit(view().action)">
+      {{ view().actionLabel }}
+    </button>
+  </div>
+</div>

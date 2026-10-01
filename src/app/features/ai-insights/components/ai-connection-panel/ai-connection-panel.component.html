@@ -1,0 +1,143 @@
+<div class="connect-head">
+  <h2 id="ai-connect-title">AI Provider</h2>
+  <span class="connection-pill {{ pill().cls }}" role="status">{{ pill().text }}</span>
+</div>
+
+<p class="connect-intro">
+  LifeOS uses your own AI provider account to answer questions. Connect it once
+  here — AI Insights and the salary document reader both use it.
+</p>
+
+@if (!showForm()) {
+  <div class="saved-connection">
+    <div class="saved-row">
+      <span class="saved-label">Provider</span>
+      <span class="saved-value">{{ connectedProviderLabel() }}</span>
+    </div>
+
+    <div class="saved-row">
+      <span class="saved-label">API Key</span>
+      <span class="saved-value key-hint">{{ connection()?.keyHint }}</span>
+    </div>
+  </div>
+
+  <div class="connect-actions">
+    <button type="button" class="btn" [disabled]="testing()" (click)="testConnection()">
+      {{ testing() ? "Testing…" : "Test Connection" }}
+    </button>
+    <button type="button" class="btn btn-secondary" [disabled]="testing()" (click)="startChangeKey()">
+      Change Key
+    </button>
+    <button type="button" class="btn btn-ghost disconnect-btn" [disabled]="testing()" (click)="disconnect()">
+      Disconnect AI
+    </button>
+  </div>
+} @else {
+  <div class="form-field">
+    <span class="field-label" id="ai-provider-label">Provider</span>
+
+    <div class="provider-options" role="radiogroup" aria-labelledby="ai-provider-label">
+      @for (p of providers; track p.id) {
+        <button
+          type="button"
+          role="radio"
+          class="provider-option"
+          [class.selected]="provider() === p.id"
+          [attr.aria-checked]="provider() === p.id"
+          [disabled]="testing()"
+          (click)="selectProvider(p.id)"
+        >
+          {{ p.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="form-field">
+    <label class="field-label" for="ai-api-key">API Key</label>
+
+    <div class="key-input-row">
+      <input
+        #keyField
+        id="ai-api-key"
+        class="form-control key-input"
+        [type]="showKey() ? 'text' : 'password'"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        [placeholder]="providerInfo().keyPlaceholder"
+        [value]="keyInput()"
+        [disabled]="testing()"
+        (input)="onKeyInput($event)"
+        (keydown.enter)="testConnection()"
+      />
+
+      <button
+        type="button"
+        class="key-icon-btn"
+        [attr.aria-label]="showKey() ? 'Hide API key' : 'Show API key'"
+        [attr.aria-pressed]="showKey()"
+        (click)="toggleShowKey()"
+      >
+        {{ showKey() ? "Hide" : "Show" }}
+      </button>
+
+      @if (keyInput()) {
+        <button type="button" class="key-icon-btn" aria-label="Clear API key" (click)="clearKey()">✕</button>
+      }
+    </div>
+
+    @if (validationMessage()) {
+      <p class="field-error" role="alert">{{ validationMessage() }}</p>
+    }
+
+    <button type="button" class="link-btn" (click)="guideRequested.emit()">
+      Don't have a key? See how to get one ↓
+    </button>
+  </div>
+
+  <div class="connect-actions">
+    <button type="button" class="btn btn-lg test-btn" [disabled]="testing()" (click)="testConnection()">
+      @if (testing()) {
+        <span class="btn-spinner" aria-hidden="true"></span>
+        Testing…
+      } @else {
+        Test Connection
+      }
+    </button>
+
+    @if (changingKey()) {
+      <button type="button" class="btn btn-lg btn-secondary" [disabled]="testing()" (click)="cancelChangeKey()">
+        Cancel
+      </button>
+    }
+  </div>
+}
+
+@if (testing()) {
+  <p class="testing-note" role="status" aria-live="polite">
+    Checking your key with {{ providerInfo().company }}…
+  </p>
+}
+
+@if (justConnected() && status().state === "connected") {
+  <div class="success-box" role="status">
+    <p class="success-title">✓ AI connected successfully</p>
+    <p>You can now use AI Insights.</p>
+  </div>
+}
+
+@if (errorView(); as view) {
+  <app-ai-status-card class="panel-error" [view]="view" (action)="testConnection()" />
+}
+
+<p class="fine-print">
+  AI usage is provided through your selected AI provider. Usage limits and
+  charges, if any, are controlled by that provider and your account.
+</p>
+
+<p class="fine-print">
+  Your key is checked with the provider, then encrypted by the LifeOS AI
+  service. This device keeps only the encrypted version and shows just the
+  last four characters. Disconnect any time to remove it.
+</p>

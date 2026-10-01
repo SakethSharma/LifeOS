@@ -1,0 +1,101 @@
+<section class="salary-tax" aria-labelledby="salary-tax-title">
+  <app-collapsible-section [(expanded)]="expanded">
+    <div collapsible-header>
+      <h2 id="salary-tax-title" class="salary-tax-title">Salary &amp; Income Tax</h2>
+
+      <p class="salary-tax-subtitle">
+        Estimate your take-home pay and income tax. LifeOS does every calculation
+        itself — AI is only used to read documents you choose to upload.
+      </p>
+    </div>
+
+    <div class="salary-tax-stack">
+      <app-salary-input [manual]="manual()" (manualChange)="onManualChange($event)" />
+
+      <div class="card">
+        <app-regime-selector
+          [regime]="regime()"
+          [taxYearId]="taxYearId()"
+          [availableYears]="availableYears"
+          (regimeChange)="onRegimeChange($event)"
+          (taxYearChange)="onTaxYearChange($event)"
+        />
+      </div>
+
+      <app-salary-document-upload (detected)="onDetected($event)" (enterManually)="onEnterManually()" />
+
+      @if (pendingDetection()) {
+        <app-detected-salary-data
+          [result]="pendingDetection()!"
+          [existingManual]="manual()"
+          (confirm)="onConfirmDetected($event)"
+          (dismiss)="onDismissDetected()"
+        />
+      }
+
+      @if (confirmed().length > 0) {
+        <p class="confirmed-note">
+          {{ confirmed().length }} confirmed value(s) from an uploaded/pasted
+          document are being used in your calculation.
+        </p>
+      }
+
+      @if (regime() === "old") {
+        <app-tax-questionnaire
+          [answers]="answers()"
+          [activeIndex]="activeQuestionIndex()"
+          (answersChange)="onAnswersChange($event)"
+          (activeIndexChange)="activeQuestionIndex.set($event)"
+        />
+      }
+
+      <div class="calculate-block">
+        @if (calculateBlockedReason(); as reason) {
+          <p class="blocked-note" role="alert">{{ reason }}</p>
+        }
+
+        <div class="calculate-actions">
+          <button
+            type="button"
+            class="btn btn-lg calculate-btn"
+            [disabled]="!canCalculate()"
+            (click)="calculate()"
+          >
+            Calculate Tax
+          </button>
+
+          <button type="button" class="btn btn-lg btn-secondary reset-btn" (click)="resetAll()">
+            Reset
+          </button>
+        </div>
+
+        <p class="calculate-hint">
+          You can calculate at any time — unanswered questions are simply treated
+          as not applicable.
+        </p>
+      </div>
+
+      @if (result(); as r) {
+        <app-salary-summary [result]="r" />
+
+        <app-tax-result
+          [result]="r"
+          [comparison]="comparison()"
+          [taxYearLabel]="taxYearLabel()"
+          (compareRequested)="compareRegimes()"
+        />
+      }
+    </div>
+
+    <div class="file-tax-block">
+      <button type="button" class="btn btn-lg btn-secondary file-tax-btn" (click)="openIncomeTaxPortal()">
+        File Income Tax ?
+      </button>
+
+      <p class="file-tax-note">
+        Opens the official Income Tax e-Filing portal in a new tab. LifeOS never
+        asks for your PAN or portal password.
+      </p>
+    </div>
+  </app-collapsible-section>
+</section>

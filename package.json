@@ -4,7 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build"
+    "build": "ng build",
+    "test:calc": "node --experimental-strip-types --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs src/app/features/salary-tax/tests/tax-engine.test.ts",
+    "test:ai": "node --experimental-transform-types --no-warnings --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs --test src/app/core/ai/tests/ai-core.test.ts netlify/tests/ai-backend.test.ts",
+    "typecheck:functions": "tsc -p netlify/tsconfig.json",
+    "test": "npm run test:calc && npm run test:ai && npm run typecheck:functions"
   },
   "dependencies": {
     "@angular/common": "21.2.23",

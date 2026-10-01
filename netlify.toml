@@ -2,6 +2,37 @@
 command = "npx ng build"
 publish = "dist/demo/browser"
 
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
+# LifeOS AI backend (bring-your-own-key proxy). These must stay above the SPA
+# catch-all below. Required site environment variable: AI_CREDENTIAL_SECRET
+# (see README → "AI setup").
+[[redirects]]
+  from = "/api/ai/connect"
+  to = "/.netlify/functions/ai-connect"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/test"
+  to = "/.netlify/functions/ai-test"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/chat"
+  to = "/.netlify/functions/ai-chat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/extract"
+  to = "/.netlify/functions/ai-extract"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

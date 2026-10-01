@@ -1,0 +1,246 @@
+:host {
+  display: block;
+}
+
+.connect-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.375rem;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.connection-pill {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.connection-pill.on {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.connection-pill.testing {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.connection-pill.issue {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.connect-intro {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.form-field {
+  margin-bottom: 1rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.provider-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.provider-option {
+  min-height: 48px;
+  padding: 0.625rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.provider-option.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.provider-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.key-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.key-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 48px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+}
+
+.key-icon-btn {
+  min-width: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.field-error {
+  margin: 0.5rem 0 0;
+  color: var(--error);
+  font-size: 0.8125rem;
+}
+
+.link-btn {
+  margin-top: 0.5rem;
+  padding: 0.375rem 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saved-connection {
+  margin-bottom: 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.saved-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.saved-label {
+  color: var(--text-secondary);
+}
+
+.saved-value {
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.key-hint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.connect-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.test-btn {
+  min-width: 180px;
+}
+
+.disconnect-btn {
+  color: var(--error);
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--primary-contrast) 40%, transparent);
+  border-top-color: var(--primary-contrast);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.testing-note {
+  margin: 0.75rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.success-box {
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--success) 45%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-1));
+}
+
+.success-box p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.success-box .success-title {
+  margin-bottom: 0.25rem;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.panel-error {
+  margin-top: 1rem;
+}
+
+.fine-print {
+  margin: 1rem 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.fine-print + .fine-print {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .connect-actions .btn {
+    flex: 1 1 100%;
+  }
+}

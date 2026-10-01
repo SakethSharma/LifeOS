@@ -1,5 +1,5 @@
-import { Transaction } from '../models/transaction.model';
-import {
+import type { Transaction } from '../models/transaction.model';
+import type {
   DashboardSummary,
   CategoryAggregation,
   MonthlyData,

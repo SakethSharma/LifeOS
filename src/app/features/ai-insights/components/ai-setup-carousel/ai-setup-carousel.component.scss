@@ -1,0 +1,224 @@
+:host {
+  display: block;
+}
+
+.carousel {
+  outline: none;
+  touch-action: pan-y;
+}
+
+.carousel:focus-visible {
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.illustration {
+  display: grid;
+  height: 150px;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.mock-window {
+  width: min(100%, 300px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.mock-window.lifeos {
+  border-color: var(--primary);
+}
+
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-3);
+}
+
+.mock-dots {
+  width: 22px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--border-strong);
+}
+
+.mock-url {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mock-body {
+  display: flex;
+  min-height: 78px;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.mock-body.center {
+  align-items: center;
+  justify-content: center;
+}
+
+.mock-chip,
+.mock-button,
+.mock-field,
+.mock-menu-item {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mock-chip {
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+}
+
+.mock-chip.muted {
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.mock-chip.strong {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.mock-button {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.mock-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.mock-copy {
+  color: var(--primary);
+  font-family: inherit;
+}
+
+.mock-caption {
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+}
+
+.mock-line {
+  width: 70%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+}
+
+.mock-line.short {
+  width: 45%;
+}
+
+.mock-menu-item.highlight {
+  padding: 0.375rem 0.5rem;
+  border: 1.5px solid var(--primary);
+  border-radius: 6px;
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.step-count {
+  margin: 0 0 0.25rem;
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.step-title {
+  margin: 0 0 0.375rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.step-body {
+  min-height: 4.5em;
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.step-link {
+  min-height: 40px;
+  margin-bottom: 0.75rem;
+  text-decoration: none;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+/* 24px tap area around an 8px dot. */
+.dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.dot::after {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  content: '';
+  transition: background var(--transition);
+}
+
+.dot.active::after {
+  background: var(--primary);
+}
+
+.nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.nav .btn {
+  min-height: 44px;
+}

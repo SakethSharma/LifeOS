@@ -1,0 +1,67 @@
+<div class="card questionnaire-card">
+  <app-collapsible-section [(expanded)]="expanded">
+    <div collapsible-header class="questionnaire-header">
+      <h3 class="questionnaire-title">Old Regime Deductions</h3>
+      <span class="questionnaire-count">{{ answeredCount() }}/{{ questions.length }} reviewed</span>
+    </div>
+
+    <p class="questionnaire-hint">
+      Answer any, all, or none of these — in any order. Anything you skip simply
+      isn't included. You can calculate your tax at any time.
+    </p>
+
+    @if (hasIncomplete()) {
+      <p class="questionnaire-warning" role="alert">
+        A question marked ✗ was answered "Yes" but is still missing an amount —
+        fill it in or switch it to "No" before calculating.
+      </p>
+    }
+
+    <div class="question-nav" role="tablist" aria-label="Old regime deduction questions">
+      @for (q of questions; track q.id; let i = $index) {
+        <button
+          type="button"
+          class="nav-chip"
+          [class.active]="i === activeIndex()"
+          [class.done]="completion(q.id) === 'complete'"
+          [class.incomplete]="completion(q.id) === 'incomplete'"
+          [class.skipped]="completion(q.id) === 'skipped'"
+          role="tab"
+          [attr.aria-selected]="i === activeIndex()"
+          [attr.aria-label]="q.title"
+          (click)="goTo(i)"
+        >
+          {{ i + 1 }}
+          @if (statusMark(q.id)) {
+            <span class="nav-chip-mark">{{ statusMark(q.id) }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    <div class="question-meta">
+      Question {{ activeIndex() + 1 }} of {{ questions.length }} — {{ activeQuestion().title }}
+    </div>
+
+    <app-tax-question
+      [meta]="activeQuestion()"
+      [answer]="activeAnswer()"
+      (answerChange)="onAnswerChange($event)"
+    />
+
+    <div class="question-controls">
+      <button type="button" class="btn btn-secondary" [disabled]="activeIndex() === 0" (click)="previous()">
+        &lt; Previous
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-secondary"
+        [disabled]="activeIndex() === questions.length - 1"
+        (click)="next()"
+      >
+        Next &gt;
+      </button>
+    </div>
+  </app-collapsible-section>
+</div>

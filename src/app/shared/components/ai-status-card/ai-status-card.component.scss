@@ -1,0 +1,63 @@
+:host {
+  display: block;
+}
+
+.ai-status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface-1));
+}
+
+.ai-status-card.info {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface-1));
+}
+
+.ai-status-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--warning);
+  font-size: 1rem;
+}
+
+.info .ai-status-icon {
+  color: var(--primary);
+}
+
+.ai-status-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.ai-status-title {
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.ai-status-message {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ai-status-action {
+  min-height: 40px;
+}
+
+@media (max-width: 480px) {
+  .ai-status-action {
+    width: 100%;
+  }
+}

@@ -1,0 +1,31 @@
+<div class="regime-row">
+  <div class="regime-toggle" role="group" aria-label="Tax regime">
+    <button
+      type="button"
+      class="regime-btn"
+      [class.active]="regime() === 'new'"
+      (click)="select('new')"
+    >
+      New Regime
+    </button>
+
+    <button
+      type="button"
+      class="regime-btn"
+      [class.active]="regime() === 'old'"
+      (click)="select('old')"
+    >
+      Old Regime
+    </button>
+  </div>
+
+  <div class="year-select">
+    <label class="form-label" for="st-tax-year">Tax Year</label>
+
+    <select id="st-tax-year" class="form-control" [value]="taxYearId()" (change)="onYearChange($event)">
+      @for (year of availableYears(); track year.id) {
+        <option [value]="year.id">{{ year.label }}</option>
+      }
+    </select>
+  </div>
+</div>

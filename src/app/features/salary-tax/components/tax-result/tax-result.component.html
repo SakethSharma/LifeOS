@@ -1,0 +1,155 @@
+<div class="card result-card">
+  <app-collapsible-section [(expanded)]="expanded">
+    <div collapsible-header class="result-header">
+      <h3 class="result-title">Salary &amp; Tax Summary</h3>
+      <span class="result-regime">{{ result().tax.regime === "new" ? "New Regime" : "Old Regime" }} · {{ taxYearLabel() }}</span>
+    </div>
+
+    <div class="headline-grid">
+    <div class="headline-cell">
+      <span>Taxable Income</span>
+      <strong>{{ result().tax.taxableIncome | currencyFormat: symbol() }}</strong>
+    </div>
+
+    <div class="headline-cell">
+      <span>Annual Income Tax</span>
+      <strong>{{ result().tax.totalAnnualTax | currencyFormat: symbol() }}</strong>
+    </div>
+  </div>
+
+  <button type="button" class="btn-link" (click)="toggleBreakdown()">
+    {{ showBreakdown() ? "Hide calculation breakdown" : "Show calculation breakdown" }}
+  </button>
+
+  @if (showBreakdown()) {
+    <dl class="breakdown-list">
+      <div>
+        <dt>Gross Annual Salary</dt>
+        <dd>{{ result().tax.grossAnnualSalary | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Standard Deduction</dt>
+        <dd>-{{ result().tax.standardDeduction | currencyFormat: symbol() }}</dd>
+      </div>
+
+      @for (line of result().tax.deductionLines; track line.label) {
+        <div [class.not-provided]="!line.provided">
+          <dt>{{ line.label }}</dt>
+          <dd>{{ line.provided ? "-" + (line.amount | currencyFormat: symbol()) : "Not provided" }}</dd>
+        </div>
+      }
+
+      <div class="subtotal">
+        <dt>Taxable Income</dt>
+        <dd>{{ result().tax.taxableIncome | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Tax (before rebate)</dt>
+        <dd>{{ result().tax.taxBeforeRebate | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Rebate (Sec 87A)</dt>
+        <dd>-{{ result().tax.rebate | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Surcharge</dt>
+        <dd>{{ result().tax.surcharge | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Health &amp; Education Cess</dt>
+        <dd>{{ result().tax.cess | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div class="total">
+        <dt>Final Annual Tax</dt>
+        <dd>{{ result().tax.totalAnnualTax | currencyFormat: symbol() }}</dd>
+      </div>
+
+      <div>
+        <dt>Estimated Monthly Tax Deduction</dt>
+        <dd>{{ result().tax.monthlyTax | currencyFormat: symbol() }}</dd>
+      </div>
+    </dl>
+  }
+
+  @if (comparison(); as cmp) {
+    <div class="comparison-block">
+      <h4 class="comparison-title">New Regime vs Old Regime</h4>
+
+      <div class="comparison-table">
+        <div class="comparison-row header">
+          <span></span>
+          <span>New Regime</span>
+          <span>Old Regime</span>
+        </div>
+
+        <div class="comparison-row">
+          <span>Taxable Income</span>
+          <span>{{ cmp.new.tax.taxableIncome | currencyFormat: symbol() }}</span>
+          <span>{{ cmp.old.tax.taxableIncome | currencyFormat: symbol() }}</span>
+        </div>
+
+        <div class="comparison-row">
+          <span>Annual Tax</span>
+          <span>{{ cmp.new.tax.totalAnnualTax | currencyFormat: symbol() }}</span>
+          <span>{{ cmp.old.tax.totalAnnualTax | currencyFormat: symbol() }}</span>
+        </div>
+
+        <div class="comparison-row">
+          <span>Monthly Tax</span>
+          <span>{{ cmp.new.tax.monthlyTax | currencyFormat: symbol() }}</span>
+          <span>{{ cmp.old.tax.monthlyTax | currencyFormat: symbol() }}</span>
+        </div>
+
+        <div class="comparison-row">
+          <span>Monthly Take Home</span>
+          <span>{{ cmp.new.takeHome.monthlyTakeHome | currencyFormat: symbol() }}</span>
+          <span>{{ cmp.old.takeHome.monthlyTakeHome | currencyFormat: symbol() }}</span>
+        </div>
+      </div>
+
+      <p class="comparison-note">
+        LifeOS shows both regimes side by side — it does not recommend one over
+        the other. The choice is yours.
+      </p>
+    </div>
+  } @else {
+    <button type="button" class="btn btn-secondary compare-btn" (click)="compareRequested.emit()">
+      Compare New vs Old Regime
+    </button>
+  }
+
+  <div class="ai-explain-block">
+    @if (!aiAvailable()) {
+      <p class="ai-note">
+        Connect an AI provider to get a plain-language explanation of this
+        result.
+      </p>
+      <button type="button" class="btn btn-secondary" (click)="connectAi()">Connect AI</button>
+    } @else if (explaining()) {
+      <div class="ai-loading" role="status" aria-live="polite">
+        <span class="ai-spinner" aria-hidden="true"></span>
+        Asking AI to explain this result…
+      </div>
+    } @else if (explanation()) {
+      <div class="ai-explanation">
+        <span class="ai-explanation-label">AI Explanation</span>
+        <p>{{ explanation() }}</p>
+      </div>
+    } @else {
+      <button type="button" class="btn btn-secondary" (click)="explainWithAi()">
+        Explain this result with AI
+      </button>
+    }
+
+    @if (explainErrorView(); as view) {
+      <app-ai-status-card class="ai-error-card" [view]="view" (action)="onExplainErrorAction($event)" />
+    }
+  </div>
+  </app-collapsible-section>
+</div>

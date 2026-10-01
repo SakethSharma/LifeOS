@@ -1,0 +1,100 @@
+<div class="card detected-card">
+  @if (!result().isRelevant) {
+    <p class="irrelevant-note" role="alert">
+      {{ result().message || "This doesn't appear to be a relevant salary or tax document." }}
+    </p>
+
+    <button type="button" class="btn btn-secondary" (click)="dismiss.emit()">Dismiss</button>
+  } @else {
+    <h3 class="detected-title">Information Detected</h3>
+
+    @if (result().message) {
+      <p class="detected-message">{{ result().message }}</p>
+    }
+
+    @if (hasUsableRows()) {
+      <p class="detected-hint">
+        Please review the detected information before calculating. Edit any
+        value or frequency that looks wrong.
+      </p>
+
+      <div class="detected-table">
+        @for (row of usableRows(); track row.id) {
+          <div class="detected-row" [class.conflict]="row.hasConflict">
+            <div class="row-label">
+              <span class="row-name">{{ fieldLabel(row.mappedField) }}</span>
+              <span class="row-raw">"{{ row.rawLabel }}"</span>
+            </div>
+
+            <div class="row-controls">
+              <div class="amount-field">
+                <span class="currency-prefix">{{ symbol() }}</span>
+                <input
+                  class="form-control"
+                  type="text"
+                  inputmode="numeric"
+                  [value]="display(row.value)"
+                  (input)="onValueEdit(row, $event)"
+                />
+              </div>
+
+              <select class="form-control freq-select" [value]="row.frequency" (change)="onFrequencyChange(row, $event)">
+                <option value="monthly">/ month</option>
+                <option value="annual">/ year</option>
+              </select>
+            </div>
+
+            @if (row.hasConflict) {
+              <div class="conflict-banner">
+                <p>
+                  Different values were found — you entered
+                  {{ symbol() }}{{ display(row.existingValue!) }}/year manually.
+                </p>
+
+                <div class="conflict-choice">
+                  <button
+                    type="button"
+                    class="choice-btn"
+                    [class.active]="row.useDetected"
+                    (click)="chooseDetected(row)"
+                  >
+                    Use detected value
+                  </button>
+
+                  <button
+                    type="button"
+                    class="choice-btn"
+                    [class.active]="!row.useDetected"
+                    (click)="chooseExisting(row)"
+                  >
+                    Keep entered value
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (ignoredRows().length > 0) {
+      <details class="ignored-details">
+        <summary>{{ ignoredRows().length }} other detected value(s) not used in calculation</summary>
+
+        <ul class="ignored-list">
+          @for (row of ignoredRows(); track row.id) {
+            <li>{{ row.rawLabel }}: {{ symbol() }}{{ display(row.value) }}</li>
+          }
+        </ul>
+      </details>
+    }
+
+    <div class="detected-actions">
+      <button type="button" class="btn btn-secondary" (click)="dismiss.emit()">Dismiss</button>
+
+      <button type="button" class="btn" [disabled]="!hasUsableRows()" (click)="confirmAll()">
+        Confirm &amp; Use
+      </button>
+    </div>
+  }
+</div>

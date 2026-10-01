@@ -1,9 +1,11 @@
 <section class="emi" aria-labelledby="emi-title">
-  <h2 id="emi-title" class="emi-title">EMI Calculator</h2>
+  <app-collapsible-section [(expanded)]="expanded">
+    <div collapsible-header>
+      <h2 id="emi-title" class="emi-title">EMI Calculator</h2>
+      <p class="emi-subtitle">Estimate the monthly instalment on a loan.</p>
+    </div>
 
-  <p class="emi-subtitle">Estimate the monthly instalment on a loan.</p>
-
-  <form class="card emi-card" (submit)="onSubmit($event)" novalidate>
+    <form class="card emi-card" (submit)="onSubmit($event)" novalidate>
     <div class="form-group">
       <label class="form-label" for="emi-principal">Loan amount (₹)</label>
 
@@ -191,5 +193,6 @@
         </div>
       </div>
     }
-  </form>
+    </form>
+  </app-collapsible-section>
 </section>

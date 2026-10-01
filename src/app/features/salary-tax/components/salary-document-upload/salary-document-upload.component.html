@@ -1,0 +1,78 @@
+<div class="card upload-card">
+  <app-collapsible-section [(expanded)]="expanded">
+    <h3 collapsible-header class="upload-title">Let AI Fill It In For You</h3>
+
+    <p class="upload-hint">
+      Optional — upload a salary slip, offer letter, or Form 16, or paste the
+      details as text. LifeOS will show you what it detected before using
+      anything in a calculation.
+    </p>
+
+    @if (!aiAvailable()) {
+      <p class="ai-status-note">
+        Plain text and CSV/TXT files are read on this device. Images and PDFs
+        need an AI provider — connect one once in AI Insights.
+      </p>
+    } @else if (!online()) {
+      <p class="ai-status-note">
+        You're offline. Pasted text and CSV/TXT files still work; images and
+        PDFs need an internet connection.
+      </p>
+    }
+
+    <div class="form-group">
+      <label class="form-label" for="st-paste">Paste your salary details here</label>
+
+      <textarea
+        id="st-paste"
+        class="form-control paste-area"
+        rows="4"
+        placeholder="e.g. Basic Salary  48000&#10;HRA  24000&#10;Special Allowance  18000"
+        [ngModel]="pasteText()"
+        (ngModelChange)="pasteText.set($event)"
+        [disabled]="analyzing()"
+      ></textarea>
+    </div>
+
+    <div class="upload-actions">
+      <button
+        type="button"
+        class="btn"
+        [disabled]="!pasteText().trim() || analyzing()"
+        (click)="analyzePaste()"
+      >
+        Analyze Pasted Text
+      </button>
+
+      <label class="btn btn-secondary file-btn" [class.disabled]="analyzing()">
+        Upload File
+        <input
+          type="file"
+          class="file-input"
+          accept=".pdf,.txt,.csv,.tsv,image/*"
+          [disabled]="analyzing()"
+          (change)="onFileSelected($event)"
+        />
+      </label>
+    </div>
+
+    @if (fileName()) {
+      <p class="file-name">Selected: {{ fileName() }}</p>
+    }
+
+    @if (analyzing()) {
+      <div class="upload-loading" role="status" aria-live="polite">
+        <span class="upload-spinner" aria-hidden="true"></span>
+        Analyzing…
+      </div>
+    }
+
+    @if (error()) {
+      <p class="upload-error" role="alert">{{ error() }}</p>
+    }
+
+    @if (aiErrorView(); as view) {
+      <app-ai-status-card class="upload-ai-error" [view]="view" (action)="onAiErrorAction($event)" />
+    }
+  </app-collapsible-section>
+</div>

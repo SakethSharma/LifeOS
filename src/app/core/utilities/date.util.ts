@@ -1,5 +1,5 @@
-import { DateRange } from "../models/analytics.model";
-import { DateRangePreset } from "../models/settings.model";
+import type { DateRange } from "../models/analytics.model";
+import type { DateRangePreset } from "../models/settings.model";
 import { toDateString } from "./format.util";
 
 export function getDateRange(

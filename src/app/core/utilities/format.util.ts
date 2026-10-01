@@ -1,4 +1,4 @@
-import { DateFormat } from '../models/settings.model';
+import type { DateFormat } from '../models/settings.model';
 
 export function formatCurrency(amount: number, symbol: string): string {
   const abs = Math.abs(amount);

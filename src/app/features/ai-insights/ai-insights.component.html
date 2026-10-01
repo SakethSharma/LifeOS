@@ -6,106 +6,145 @@
       <h1>AI Insights</h1>
 
       <p>
-        Discover useful observations about your finances using local-first
-        analysis.
+        Ask questions about your finances and get answers based on the numbers
+        LifeOS has already calculated.
       </p>
     </div>
 
-    <div class="header-badge">
+    <div class="header-badge {{ badge().cls }}">
       <span class="status-dot"></span>
-      Local Analysis
+      {{ badge().text }}
     </div>
   </header>
 
-  <section class="hero-card">
-    <div class="hero-icon">✦</div>
+  <section class="prompt-card chat-card" aria-labelledby="chat-title">
+    <div class="chat-head">
+      <h2 id="chat-title" class="chat-title"><span aria-hidden="true">✨</span> AI Insights</h2>
 
-    <div class="hero-content">
-      <h2>Your financial intelligence centre</h2>
-
-      <p>
-        AI-powered analysis will help you understand spending patterns, identify
-        unusual transactions, and discover opportunities to save.
-      </p>
-
-      <div class="hero-tags">
-        <span>Spending Patterns</span>
-        <span>Budget Awareness</span>
-        <span>Saving Opportunities</span>
-      </div>
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm reset-btn"
+        [disabled]="!hasConversation() && !question()"
+        (click)="resetConversation()"
+        aria-label="Reset conversation"
+      >
+        ↻ Reset
+      </button>
     </div>
-  </section>
 
-  <section class="prompt-card">
-    <form class="prompt-form" (ngSubmit)="submitPrompt()">
-      <label class="prompt-label" for="ai-prompt">Ask about your finances</label>
+    <p class="chat-sub">Ask LifeOS anything about your finances.</p>
 
-      <textarea
-        id="ai-prompt"
-        name="prompt"
-        class="form-control prompt-input"
-        rows="3"
-        placeholder="e.g. What are my biggest spending categories?"
-        [ngModel]="question()"
-        (ngModelChange)="question.set($event)"
-        (keydown.enter)="onPromptEnter($event)"
-      ></textarea>
-
-      <div class="prompt-actions">
-        <span class="prompt-hint">
-          Press Enter to send, Shift+Enter for a new line
-        </span>
-
-        <div class="prompt-buttons">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            [disabled]="!question() && !promptResult()"
-            (click)="resetPrompt()"
-          >
-            Reset
-          </button>
-
-          <button type="submit" class="btn" [disabled]="!question().trim()">
-            Ask
-          </button>
-        </div>
-      </div>
-    </form>
-
-    @if (promptResult(); as blocks) {
-      <article class="result-card" role="status">
-        <button
-          type="button"
-          class="result-close"
-          (click)="dismissPromptResult()"
-          aria-label="Close"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-
-        @for (block of blocks; track $index) {
-          @switch (block.type) {
-            @case ("summary") {
-              <p class="result-text">{{ block.text }}</p>
-            }
-            <!-- Future block types (chart, table, bullets, metrics, ...) render here. -->
-          }
-        }
-      </article>
+    @if (!isConnected() && !hasConversation()) {
+      <app-ai-status-card class="chat-status" tone="info" [view]="notConnectedView" (action)="handleAction($event)" />
     }
+
+    @if (isConnected() && !online()) {
+      <p class="offline-note" role="status">
+        You're offline. AI answers need an internet connection — everything else
+        in LifeOS keeps working.
+      </p>
+    }
+
+    @if (chat().messages.length > 0) {
+      <ol class="conversation" aria-label="Conversation" aria-live="polite">
+        @for (m of chat().messages; track m.id) {
+          <li class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
+            <span class="msg-role">{{ m.role === "user" ? "You" : "✦ LifeOS AI" }}</span>
+            <p class="msg-text">{{ m.content }}</p>
+          </li>
+        }
+      </ol>
+    }
+
+    @if (chat().pending) {
+      <div class="prompt-loading" role="status" aria-live="polite">
+        <span class="prompt-spinner" aria-hidden="true"></span>
+        Thinking…
+      </div>
+    }
+
+    @if (errorView(); as view) {
+      <app-ai-status-card class="chat-status" [view]="view" (action)="handleAction($event)" />
+    }
+
+    @if (chat().unansweredPrompt && !chat().error && !chat().pending && isConnected()) {
+      <div class="unsent-row">
+        <span>AI is connected. Your last question hasn't been answered yet.</span>
+        <button type="button" class="btn btn-sm" (click)="sendUnanswered()">Ask now</button>
+      </div>
+    }
+
+    <div #conversationEnd></div>
+
+    @if (isConnected() && chat().messages.length === 0 && !chat().pending) {
+      <div class="suggestions" aria-label="Suggested questions">
+        @for (p of suggestedPrompts; track p) {
+          <button type="button" class="suggestion" (click)="usePrompt(p)">{{ p }}</button>
+        }
+      </div>
+    }
+
+    <form class="prompt-form" (ngSubmit)="submitPrompt()">
+      <label class="prompt-label visually-hidden" for="ai-prompt">Ask about your finances</label>
+
+      <div class="prompt-row">
+        <textarea
+          id="ai-prompt"
+          name="prompt"
+          class="form-control prompt-input"
+          rows="2"
+          placeholder="Ask something…"
+          [maxlength]="maxMessageChars"
+          [ngModel]="question()"
+          (ngModelChange)="question.set($event)"
+          (keydown.enter)="onPromptEnter($event)"
+        ></textarea>
+
+        <button type="submit" class="btn send-btn" [disabled]="!canSend()">
+          {{ chat().pending ? "Sending…" : "Send" }}
+        </button>
+      </div>
+
+      <span class="prompt-hint">Enter to send · Shift+Enter for a new line</span>
+    </form>
   </section>
+
+  @if (showSetup()) {
+    <section #setupSection id="ai-connect" class="setup-card" aria-labelledby="ai-connect-title">
+      <app-ai-connection-panel
+        (guideRequested)="openGuide()"
+        (providerChange)="guideProvider.set($event)"
+        (disconnected)="onDisconnected()"
+      />
+
+      <div class="guide-block">
+        <app-collapsible-section [(expanded)]="guideExpanded">
+          <div collapsible-header>
+            <h2 class="guide-title">How to connect your AI</h2>
+            <p class="guide-sub">A quick visual walkthrough for getting your API key.</p>
+          </div>
+
+          <app-ai-setup-carousel [provider]="guideProvider()" />
+        </app-collapsible-section>
+      </div>
+
+      @if (isConnected()) {
+        <button type="button" class="btn btn-ghost btn-sm close-setup" (click)="closeSetup()">Hide AI settings</button>
+      }
+    </section>
+  } @else {
+    <section class="connection-summary">
+      <span class="summary-text">
+        <span class="summary-check" aria-hidden="true">✓</span>
+        Connected to {{ connectedProviderLabel() }}
+        <span class="summary-key">{{ connection()?.keyHint }}</span>
+      </span>
+
+      <button type="button" class="btn btn-secondary btn-sm" (click)="openSetup({ guide: false, changeKey: false })">
+        Manage AI
+      </button>
+    </section>
+  }
 
   <section class="insight-grid">
     <article class="insight-card">
@@ -114,11 +153,9 @@
       <h2>Spending Analysis</h2>
 
       <p>
-        Identify your highest spending categories and understand how your
-        expenses change over time.
+        Ask where your money goes — AI answers using your category totals and
+        largest recent expenses.
       </p>
-
-      <span class="coming-soon"> Available after data integration </span>
     </article>
 
     <article class="insight-card">
@@ -127,11 +164,9 @@
       <h2>Savings Opportunities</h2>
 
       <p>
-        Discover potential savings opportunities based on your recurring
-        expenses and spending behaviour.
+        Compare months and ask why your savings changed, based on the income and
+        expenses you've recorded.
       </p>
-
-      <span class="coming-soon"> Available after data integration </span>
     </article>
 
     <article class="insight-card">
@@ -140,24 +175,20 @@
       <h2>Behavioural Patterns</h2>
 
       <p>
-        Recognize repeated financial patterns and changes in your monthly
-        transaction activity.
+        Look at your six-month trend to spot changes in your monthly income and
+        spending.
       </p>
-
-      <span class="coming-soon"> Available after data integration </span>
     </article>
 
     <article class="insight-card">
       <div class="insight-icon purple">✧</div>
 
-      <h2>Ask Your Data</h2>
+      <h2>Salary &amp; Tax</h2>
 
       <p>
-        Future versions will allow you to ask natural-language questions about
-        your personal financial data.
+        After you run the Salary &amp; Income Tax calculator, AI can explain your
+        result using LifeOS's own numbers.
       </p>
-
-      <span class="coming-soon"> AI provider integration planned </span>
     </article>
   </section>
 
@@ -168,9 +199,10 @@
       <h2>Privacy-first intelligence</h2>
 
       <p>
-        LifeOS is designed to analyse your information locally first. External
-        AI providers should only be connected with your explicit configuration
-        and consent.
+        AI only sees summaries LifeOS calculates on this device: totals,
+        categories, dates, and amounts. Transaction descriptions, notes, and
+        payment details are never sent. Your AI provider processes these
+        summaries under its own terms, and you can disconnect at any time.
       </p>
     </div>
   </section>
