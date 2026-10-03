@@ -1,8 +1,10 @@
 :host {
   display: block;
+  min-width: 0;
 }
 
 .carousel {
+  min-width: 0;
   outline: none;
   touch-action: pan-y;
 }
@@ -12,18 +14,67 @@
   box-shadow: 0 0 0 2px var(--primary);
 }
 
-.illustration {
+/* All slides share one grid cell → the track takes the tallest slide's height. */
+.track {
   display: grid;
-  height: 150px;
-  margin-bottom: 1rem;
+  min-width: 0;
+}
+
+.slide {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  grid-area: 1 / 1;
   padding: 1rem;
-  place-items: center;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background: var(--surface-1);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
+}
+
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .slide.active {
+    transition: none;
+  }
+}
+
+/* Fixed-ratio picture area: identical on every card, nothing stretched or cropped. */
+.illustration {
+  position: relative;
+  display: grid;
+  aspect-ratio: 16 / 9;
+  max-height: 200px;
+  margin-bottom: 0.875rem;
+  padding: 0.75rem;
+  overflow: hidden;
+  place-items: center;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 
+.illustration-tag {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.375rem;
+  color: var(--text-tertiary);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .mock-window {
-  width: min(100%, 300px);
+  width: min(100%, 280px);
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -67,23 +118,24 @@
 
 .mock-body {
   display: flex;
-  min-height: 78px;
+  min-height: 72px;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-}
-
-.mock-body.center {
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem;
 }
 
 .mock-chip,
 .mock-button,
 .mock-field,
 .mock-menu-item {
+  max-width: 100%;
+  overflow: hidden;
   font-size: 0.75rem;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mock-chip {
@@ -141,12 +193,17 @@
   width: 45%;
 }
 
-.mock-menu-item.highlight {
+.mock-menu-item {
   padding: 0.375rem 0.5rem;
   border: 1.5px solid var(--primary);
   border-radius: 6px;
   background: var(--primary-light);
   color: var(--primary);
+}
+
+/* Text grows to fill the card so the link slot always sits at the bottom. */
+.slide-text {
+  flex: 1;
 }
 
 .step-count {
@@ -163,19 +220,25 @@
   color: var(--text-primary);
   font-size: 1rem;
   font-weight: 700;
+  line-height: 1.35;
 }
 
 .step-body {
-  min-height: 4.5em;
-  margin: 0 0 0.75rem;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.55;
 }
 
+.step-link-slot {
+  display: flex;
+  min-height: 40px;
+  align-items: flex-end;
+  margin-top: 0.875rem;
+}
+
 .step-link {
   min-height: 40px;
-  margin-bottom: 0.75rem;
   text-decoration: none;
 }
 
@@ -183,14 +246,14 @@
   display: flex;
   justify-content: center;
   gap: 0.25rem;
-  margin: 0.5rem 0 0.75rem;
+  margin: 0.625rem 0 0.5rem;
 }
 
-/* 24px tap area around an 8px dot. */
+/* 28px tap area around an 8px dot. */
 .dot {
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   background: none;
@@ -199,26 +262,41 @@
 
 .dot::after {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 10px;
+  left: 10px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--border-strong);
   content: '';
-  transition: background var(--transition);
+  transition:
+    background var(--transition),
+    transform var(--transition);
 }
 
 .dot.active::after {
   background: var(--primary);
+  transform: scale(1.25);
+}
+
+.dot:focus-visible {
+  border-radius: 50%;
+  outline: 2px solid var(--primary);
 }
 
 .nav {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 0.5rem;
 }
 
 .nav .btn {
   min-height: 44px;
+}
+
+.nav-count {
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
 }

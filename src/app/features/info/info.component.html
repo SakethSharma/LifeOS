@@ -1,0 +1,242 @@
+<div class="info-page">
+  <!-- About -->
+  <header class="about">
+    <h1>About LifeOS</h1>
+
+    <p>
+      LifeOS is a personal finance app that helps you organize your everyday
+      money: track income and expenses, see your spending habits, and plan
+      with built-in calculators. Optional AI Insights can answer questions
+      about your finances in plain language.
+    </p>
+  </header>
+
+  <!-- App information & privacy -->
+  <section class="info-card" aria-label="App information and privacy">
+    <app-collapsible-section [(expanded)]="privacyOpen">
+      <div collapsible-header>
+        <h2 class="info-card-title">App information &amp; privacy</h2>
+        <p class="info-card-sub">What stays on your device, and what can leave it.</p>
+      </div>
+
+      <ul class="fact-list">
+        <li class="fact">
+          <span class="fact-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          </span>
+          <div>
+            <h3>Stored on this device</h3>
+            <p>
+              Your transactions and settings are saved locally in this browser
+              (or the LifeOS app) using IndexedDB. LifeOS has no accounts and no
+              server database.
+            </p>
+          </div>
+        </li>
+
+        <li class="fact">
+          <span class="fact-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></svg>
+          </span>
+          <div>
+            <h3>No server needed for your data</h3>
+            <p>
+              Because your data lives on this device, transactions, the
+              dashboard, and the calculators don't depend on a LifeOS server.
+              The Android app works without internet. Only AI features always
+              need a connection.
+            </p>
+          </div>
+        </li>
+
+        <li class="fact">
+          <span class="fact-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
+          </span>
+          <div>
+            <h3>No permissions required</h3>
+            <p>
+              LifeOS does not request microphone, camera, location, contacts, or
+              notification access. Files you attach are chosen by you through
+              your device's file picker.
+            </p>
+          </div>
+        </li>
+
+        <li class="fact">
+          <span class="fact-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          </span>
+          <div>
+            <h3>Not auto-synced</h3>
+            <p>
+              Data is not synchronized to other devices. Clearing your browser
+              or app data may remove it — use Export in Settings to keep a copy.
+            </p>
+          </div>
+        </li>
+
+        <li class="fact">
+          <span class="fact-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg>
+          </span>
+          <div>
+            <h3>Cloud sync (future)</h3>
+            <p>
+              Optional cloud synchronization may be added in a future version.
+              Today there is no sync.
+            </p>
+          </div>
+        </li>
+
+        <li class="fact highlight">
+          <span class="fact-icon" aria-hidden="true">✦</span>
+          <div>
+            <h3>When you use AI</h3>
+            <p>
+              Nothing goes to an AI provider unless you connect one and use an AI
+              feature. When you do, LifeOS sends your question, a summary of
+              figures it calculated, and any files you attach, through the
+              LifeOS AI service to your chosen provider.
+              <button type="button" class="inline-link" (click)="aiOpen.set(true); aiPrivacyOpen.set(true)">
+                What exactly is sent?
+              </button>
+            </p>
+          </div>
+        </li>
+      </ul>
+    </app-collapsible-section>
+  </section>
+
+  <!-- AI Insights -->
+  <section class="info-card" aria-label="AI Insights">
+    <app-collapsible-section [(expanded)]="aiOpen">
+      <div collapsible-header class="ai-header">
+        <div>
+          <h2 class="info-card-title">AI Insights</h2>
+          <p class="info-card-sub">How AI works in LifeOS, and how to connect it.</p>
+        </div>
+        <span class="status-pill {{ aiPill().cls }}">{{ aiPill().text }}</span>
+      </div>
+
+      <div class="sub-list">
+        <!-- How it works -->
+        <div class="sub-section">
+          <app-collapsible-section [(expanded)]="howOpen">
+            <h3 collapsible-header class="sub-title">How AI Insights works</h3>
+
+            <div class="prose">
+              <p>
+                Ask a question on the AI Insights page, such as "Where did I
+                spend the most this month?". LifeOS adds a summary of figures it
+                has already calculated from your data, and your AI provider
+                writes an answer in plain language.
+              </p>
+              <p>
+                All calculations stay with LifeOS. Totals, savings, EMI, PF, tax,
+                and take-home pay come from LifeOS's own calculators, and AI is
+                told to quote them, not work out its own. AI can explain and
+                suggest; it isn't professional financial, tax, or legal advice.
+              </p>
+              <p>
+                You can attach images and PDFs (such as a payslip) to a question.
+                The same AI connection also powers the salary-document reader in
+                the Income Tax Calculator.
+              </p>
+            </div>
+          </app-collapsible-section>
+        </div>
+
+        <!-- Connect -->
+        <div #connectSection id="ai-connect" class="sub-section scroll-target">
+          <app-collapsible-section [(expanded)]="connectOpen">
+            <h3 collapsible-header class="sub-title">Connect AI to LifeOS</h3>
+
+            <app-ai-connection-panel
+              (guideRequested)="showKeyGuide()"
+              (providerChange)="onProviderChange($event)"
+            />
+          </app-collapsible-section>
+        </div>
+
+        <!-- API key guide (carousel) -->
+        <div #guideSection id="ai-key-guide" class="sub-section scroll-target">
+          <app-collapsible-section [(expanded)]="guideOpen">
+            <div collapsible-header>
+              <h3 class="sub-title">How to Get Your AI API Key</h3>
+              <p class="sub-hint">A short step-by-step guide for your provider.</p>
+            </div>
+
+            <app-ai-setup-carousel [provider]="guideProvider()" />
+          </app-collapsible-section>
+        </div>
+
+        <!-- Privacy when using AI -->
+        <div class="sub-section">
+          <app-collapsible-section [(expanded)]="aiPrivacyOpen">
+            <h3 collapsible-header class="sub-title">Privacy when using AI</h3>
+
+            <div class="prose">
+              <p><strong>Sent when you ask a question:</strong></p>
+              <ul>
+                <li>Your question and the earlier messages of the current conversation.</li>
+                <li>
+                  Totals LifeOS calculated: income, expenses and savings per
+                  month, category totals, a six-month trend, and the dates,
+                  categories and amounts of your five largest recent expenses.
+                </li>
+                <li>Your Income Tax Calculator result, if you calculated one in this session.</li>
+                <li>Any images or PDFs you attach.</li>
+              </ul>
+
+              <p><strong>Never sent:</strong> transaction descriptions, notes, payment methods, or your full transaction list.</p>
+
+              <p>
+                <strong>Your API key:</strong> checked with your provider once,
+                then stored only in encrypted form; LifeOS shows just its last
+                four characters. Disconnect any time to remove it from this
+                device.
+              </p>
+
+              <p>
+                Your AI provider handles what you send under its own terms and
+                privacy policy. Avoid attaching documents with details you don't
+                want to share, such as PAN, Aadhaar, or account numbers.
+              </p>
+            </div>
+          </app-collapsible-section>
+        </div>
+
+        <!-- Troubleshooting -->
+        <div class="sub-section">
+          <app-collapsible-section [(expanded)]="troubleshootingOpen">
+            <h3 collapsible-header class="sub-title">Troubleshooting AI</h3>
+
+            <dl class="trouble-list">
+              <div>
+                <dt>"We couldn't authenticate with your AI provider"</dt>
+                <dd>The key is wrong, was deleted, or was copied incompletely. Create a new key and use Change Key above.</dd>
+              </div>
+              <div>
+                <dt>"No AI credit available"</dt>
+                <dd>Your provider account needs API credit. A ChatGPT or Claude subscription doesn't include API usage — check billing on the provider's API site.</dd>
+              </div>
+              <div>
+                <dt>"You're offline"</dt>
+                <dd>AI needs internet. Reconnect, then tap Try Again — your question is kept.</dd>
+              </div>
+              <div>
+                <dt>"Too many requests" or "That took too long"</dt>
+                <dd>Wait a moment and try again. Shorter questions and smaller files are faster.</dd>
+              </div>
+              <div>
+                <dt>"AI isn't available here yet" or "There's an issue connecting to AI"</dt>
+                <dd>The LifeOS AI service isn't reachable from this version of the app. Everything else in LifeOS keeps working.</dd>
+              </div>
+            </dl>
+          </app-collapsible-section>
+        </div>
+      </div>
+    </app-collapsible-section>
+  </section>
+</div>

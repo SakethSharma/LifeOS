@@ -428,49 +428,20 @@
   flex: 1;
 }
 
-/* Privacy */
+/* Link to the Info page (privacy & app details) */
 
-.privacy {
-  padding: 2rem 0 4rem;
+.info-link-row {
+  margin: 0.5rem 0 1.5rem;
+  text-align: center;
 }
 
-.privacy-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.privacy-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.privacy-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  background: var(--surface-2);
-  border-radius: 10px;
+.info-link-row a {
+  display: inline-block;
+  padding: 0.75rem 0.5rem;
   color: var(--primary);
-}
-
-.privacy-item h4 {
-  margin-bottom: 0.25rem;
-  color: var(--text-primary);
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
-}
-
-.privacy-item p {
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  text-decoration: none;
 }
 
 /* Responsive */
@@ -545,10 +516,6 @@
   .preview-tx-card {
     grid-column: 1;
     grid-row: auto;
-  }
-
-  .privacy-grid {
-    grid-template-columns: 1fr;
   }
 }
 

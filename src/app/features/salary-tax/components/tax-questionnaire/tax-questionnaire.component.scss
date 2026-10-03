@@ -42,9 +42,10 @@
 
 .nav-chip {
   position: relative;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 0.5rem;
+  /* Fixed size: a ✓/✗ mark never changes the chip width or wraps the row. */
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-1);
@@ -75,7 +76,7 @@
 }
 
 .questionnaire-warning {
-  margin-bottom: 1rem;
+  margin: 1rem 0 0;
   padding: 0.625rem 0.75rem;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--error) 10%, transparent);
@@ -85,15 +86,46 @@
 }
 
 .nav-chip-mark {
-  margin-left: 0.25rem;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: var(--surface-1);
+  font-size: 0.625rem;
+  line-height: 1;
 }
 
 .question-meta {
   margin-bottom: 1rem;
+  overflow: hidden;
   color: var(--text-tertiary);
   font-size: 0.75rem;
   letter-spacing: 0.02em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  /* One line, so long titles can't push the question card down… */
+  white-space: nowrap;
+  /* …and the unwrapped title must not widen the layout on narrow phones. */
+  contain: inline-size;
+}
+
+.question-stack {
+  display: grid;
+}
+
+.question-stack > * {
+  min-width: 0;
+  grid-area: 1 / 1;
+}
+
+.question-sizer {
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .question-controls {

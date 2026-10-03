@@ -10,13 +10,6 @@
       isn't included. You can calculate your tax at any time.
     </p>
 
-    @if (hasIncomplete()) {
-      <p class="questionnaire-warning" role="alert">
-        A question marked ✗ was answered "Yes" but is still missing an amount —
-        fill it in or switch it to "No" before calculating.
-      </p>
-    }
-
     <div class="question-nav" role="tablist" aria-label="Old regime deduction questions">
       @for (q of questions; track q.id; let i = $index) {
         <button
@@ -43,11 +36,31 @@
       Question {{ activeIndex() + 1 }} of {{ questions.length }} — {{ activeQuestion().title }}
     </div>
 
-    <app-tax-question
-      [meta]="activeQuestion()"
-      [answer]="activeAnswer()"
-      (answerChange)="onAnswerChange($event)"
-    />
+    <!--
+      The visible question shares one grid cell with hidden, unanswered copies
+      of every question, so all questions get the same compact height (the
+      longest prompt at the current width). Switching questions or answering
+      "No" never moves Previous/Next; only "Yes" grows the card for its fields.
+    -->
+    <div class="question-stack">
+      <app-tax-question
+        class="question-active"
+        [meta]="activeQuestion()"
+        [answer]="activeAnswer()"
+        (answerChange)="onAnswerChange($event)"
+      />
+
+      @for (q of questions; track q.id) {
+        <app-tax-question
+          class="question-sizer"
+          aria-hidden="true"
+          inert
+          idSuffix="-sizer"
+          [meta]="q"
+          [answer]="sizerAnswers[q.id]"
+        />
+      }
+    </div>
 
     <div class="question-controls">
       <button type="button" class="btn btn-secondary" [disabled]="activeIndex() === 0" (click)="previous()">
@@ -63,5 +76,13 @@
         Next &gt;
       </button>
     </div>
+
+    <!-- Below the controls, so it never pushes the question card or buttons around. -->
+    @if (hasIncomplete()) {
+      <p class="questionnaire-warning" role="alert">
+        A question marked ✗ was answered "Yes" but is still missing an amount —
+        fill it in or switch it to "No" before calculating.
+      </p>
+    }
   </app-collapsible-section>
 </div>

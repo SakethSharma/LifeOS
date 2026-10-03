@@ -12,6 +12,8 @@ export class TaxQuestionComponent {
   meta = input.required<TaxQuestionMeta>();
   answer = input.required<TaxQuestionAnswer>();
   answerChange = output<TaxQuestionAnswer>();
+  /** Keeps element ids unique when a copy of this card is rendered (e.g. as a hidden height sizer). */
+  idSuffix = input('');
 
   answerYes(): void {
     this.answerChange.emit({ ...this.answer(), status: 'answered_yes' });

@@ -26,6 +26,10 @@ interface NavItem {
   templateUrl: "./layout.component.html",
   styleUrl: "./layout.component.scss",
   imports: [RouterOutlet, RouterLink, RouterLinkActive, AppFooterComponent],
+  host: {
+    "(document:focusin)": "onFocusIn($event)",
+    "(document:focusout)": "onFocusOut($event)",
+  },
 })
 export class LayoutComponent {
   private readonly router = inject(Router);
@@ -65,6 +69,11 @@ export class LayoutComponent {
       route: "/ai-insights",
     },
     {
+      label: "Info",
+      icon: "info",
+      route: "/info",
+    },
+    {
       label: "Settings",
       icon: "settings",
       route: "/settings",
@@ -88,11 +97,23 @@ export class LayoutComponent {
       route: "/transactions",
     },
     {
+      label: "AI",
+      icon: "ai",
+      route: "/ai-insights",
+    },
+    {
       label: "Settings",
       icon: "settings",
       route: "/settings",
     },
   ];
+
+  /**
+   * True while a text field has focus on a phone-sized screen, i.e. the
+   * on-screen keyboard is (almost certainly) open. The bottom bar is hidden
+   * then so it doesn't sit on top of the keyboard and cover the field.
+   */
+  keyboardOpen = signal(false);
 
   // router.url is not reactive, so track navigations to keep the title current.
   private readonly currentUrl = toSignal(
@@ -110,6 +131,17 @@ export class LayoutComponent {
 
     return item?.label ?? "LifeOS";
   });
+
+  onFocusIn(event: FocusEvent): void {
+    this.keyboardOpen.set(isTextField(event.target) && isPhoneWidth());
+  }
+
+  onFocusOut(event: FocusEvent): void {
+    // Moving focus straight to another text field keeps the keyboard open.
+    if (!isTextField(event.relatedTarget)) {
+      this.keyboardOpen.set(false);
+    }
+  }
 
   toggleSidebar(): void {
     this.sidebarOpen.update((isOpen) => !isOpen);
@@ -153,6 +185,7 @@ export class LayoutComponent {
       transactions:
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
 
+      info: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
       ai: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1.5a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3z"/><path d="M12 14.5a3 3 0 0 0-3 3V19a3 3 0 0 0 6 0v-1.5a3 3 0 0 0-3-3z"/><path d="M5 8a3 3 0 0 0 0 6h1.5a3 3 0 0 0 0-6H5z"/><path d="M17.5 8a3 3 0 0 0 0 6H19a3 3 0 0 0 0-6h-1.5z"/></svg>',
 
       settings:
@@ -161,4 +194,16 @@ export class LayoutComponent {
 
     return icons[name] ?? "";
   }
+}
+
+const NON_TEXT_INPUT_TYPES = ["button", "checkbox", "color", "file", "image", "radio", "range", "reset", "submit"];
+
+function isTextField(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.includes(target.type);
+  return target instanceof HTMLElement && target.isContentEditable;
+}
+
+function isPhoneWidth(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 }

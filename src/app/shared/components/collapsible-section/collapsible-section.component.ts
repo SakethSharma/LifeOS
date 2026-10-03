@@ -1,5 +1,7 @@
 import { Component, model } from "@angular/core";
 
+let nextId = 0;
+
 /**
  * Generic show/hide wrapper: a clickable header (projected via the
  * `collapsible-header` slot) toggles the default-slot body. Callers own the
@@ -13,6 +15,8 @@ import { Component, model } from "@angular/core";
 })
 export class CollapsibleSectionComponent {
   expanded = model<boolean>(true);
+
+  readonly bodyId = `collapsible-body-${nextId++}`;
 
   toggle(): void {
     this.expanded.update((v) => !v);

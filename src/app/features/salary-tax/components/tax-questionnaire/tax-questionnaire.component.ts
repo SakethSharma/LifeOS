@@ -21,6 +21,15 @@ export class TaxQuestionnaireComponent {
 
   readonly questions = OLD_REGIME_QUESTIONS;
 
+  /**
+   * Every question in its unanswered state, used only to size the question
+   * area: browsing questions keeps one compact height, and only a "Yes" answer
+   * (which reveals amount fields) makes the card taller.
+   */
+  readonly sizerAnswers = Object.fromEntries(
+    OLD_REGIME_QUESTIONS.map((q) => [q.id, { id: q.id, status: 'not_visited', fields: {} }]),
+  ) as Record<TaxQuestionId, TaxQuestionAnswer>;
+
   activeQuestion = computed(() => this.questions[this.activeIndex()] ?? this.questions[0]);
   activeAnswer = computed(() => this.answers()[this.activeQuestion().id]);
 

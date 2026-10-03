@@ -126,16 +126,21 @@ export function handleChat(request: Request, deps: AiBackendDeps): Promise<Respo
 
     const history = parseHistory(body['history']);
     const context = parseContext(body['context']);
+    const attachments = parseAttachments(body['attachments']);
     const { provider, apiKey } = await requireCredential(request, body, deps);
+
+    const messages = normalizeTurns([...history, { role: 'user', content: message }]);
+
+    // Files ride along with the newest user message only.
+    if (attachments.length > 0) {
+      const last = messages[messages.length - 1];
+      last.content = [...attachments, { type: 'text', text: String(last.content) }];
+    }
 
     const reply = await withTimeout(deps, provider, (call) =>
       getProvider(provider).complete(
         apiKey,
-        {
-          system: buildChatSystemPrompt(context),
-          messages: normalizeTurns([...history, { role: 'user', content: message }]),
-          maxTokens: CHAT_MAX_TOKENS,
-        },
+        { system: buildChatSystemPrompt(context), messages, maxTokens: CHAT_MAX_TOKENS },
         call,
       ),
     );
@@ -352,6 +357,19 @@ function parseContext(value: unknown): AiFinancialContext | null {
   }
 
   return value as AiFinancialContext;
+}
+
+/** Optional chat attachments: same validation as document extraction, fewer files. */
+function parseAttachments(value: unknown): AiContentBlock[] {
+  if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) {
+    return [];
+  }
+
+  if (Array.isArray(value) && value.length > AI_LIMITS.maxChatAttachments) {
+    throw new RequestFailure('INVALID_REQUEST', 400);
+  }
+
+  return parseBlocks(value);
 }
 
 function parseBlocks(value: unknown): AiContentBlock[] {

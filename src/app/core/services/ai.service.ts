@@ -111,12 +111,16 @@ export class AiService {
     this.statusSignal.set({ state: 'not_configured' });
   }
 
-  async chat(history: AiChatTurn[], message: string, context: AiFinancialContext | null): Promise<string> {
+  async chat(
+    history: AiChatTurn[],
+    message: string,
+    context: AiFinancialContext | null,
+    attachments: AiContentBlock[] = [],
+  ): Promise<string> {
     const connection = this.requireConnection();
+    const request = { provider: connection.provider, history, message, context, ...(attachments.length ? { attachments } : {}) };
 
-    return this.track(() =>
-      this.client.chat({ provider: connection.provider, history, message, context }, connection.credential),
-    );
+    return this.track(() => this.client.chat(request, connection.credential));
   }
 
   async extract(task: AiExtractTask, blocks: AiContentBlock[]): Promise<string> {

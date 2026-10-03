@@ -12,7 +12,7 @@ import { AI_CONNECTION_STORAGE_KEY, AiConnectionStorage } from '../ai-connection
 import { AiChatSession } from '../ai-chat-session';
 import { buildFinancialContext } from '../financial-context.builder';
 import { AI_PROVIDERS } from '../ai-provider-guides';
-import { clampStep, stepAfterSwipe } from '../../../features/ai-insights/components/ai-setup-carousel/carousel-navigation';
+import { clampStep, stepAfterSwipe } from '../../../features/info/components/ai-setup-carousel/carousel-navigation';
 import type { Transaction } from '../../models/transaction.model';
 
 // ---- helpers -----------------------------------------------------------------
@@ -412,7 +412,7 @@ test('guides: each provider has 4–6 steps, official https links, and no real-l
   }
 
   const openAiFirst = AI_PROVIDERS.find((p) => p.id === 'openai')!.steps[0].body;
-  assert.ok(openAiFirst.includes('not the ChatGPT'), 'distinguishes ChatGPT from the API platform');
+  assert.match(openAiFirst, /not ChatGPT/, 'distinguishes ChatGPT from the API platform');
 });
 
 test('carousel: navigation stays in bounds and swipes need a clear horizontal gesture', () => {
@@ -423,4 +423,92 @@ test('carousel: navigation stays in bounds and swipes need a clear horizontal ge
   assert.equal(stepAfterSwipe(1, 6, -20, 0), 1, 'too short');
   assert.equal(stepAfterSwipe(1, 6, -60, 120), 1, 'mostly vertical = page scroll');
   assert.equal(stepAfterSwipe(5, 6, -80, 0), 5, 'no past the last step');
+});
+
+// ---- Chat attachments --------------------------------------------------------------
+
+import {
+  CHAT_ATTACHMENT_RULES,
+  classifyAttachment,
+  matchesSignature,
+  validateNewAttachments,
+} from '../chat-attachments';
+
+test('attachments: supported images and PDFs pass; type is recognised by extension when the browser gives none', () => {
+  const { accepted, errors } = validateNewAttachments([], [
+    { name: 'payslip.pdf', size: 120_000, type: 'application/pdf' },
+    { name: 'receipt.jpg', size: 300_000, type: 'image/jpeg' },
+  ]);
+
+  assert.equal(errors.length, 0);
+  assert.deepEqual(accepted.map((a) => a.kind), ['pdf', 'image']);
+  assert.equal(classifyAttachment({ name: 'Scan.PNG', size: 1, type: '' })?.mediaType, 'image/png');
+});
+
+test('attachments: every rejected file gets a friendly message (nothing silently dropped)', () => {
+  const max = CHAT_ATTACHMENT_RULES.maxFileBytes;
+  const { accepted, errors } = validateNewAttachments([], [
+    { name: 'notes.docx', size: 1000, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+    { name: 'empty.pdf', size: 0, type: 'application/pdf' },
+    { name: 'huge.pdf', size: max + 1, type: 'application/pdf' },
+    { name: 'fake.png', size: 10, type: 'text/plain' },
+  ]);
+
+  assert.equal(accepted.length, 0);
+  assert.equal(errors.length, 4);
+  assert.match(errors[0], /not supported/);
+  assert.match(errors[1], /empty/);
+  assert.match(errors[2], /too large/);
+  assert.ok(errors.every((e) => !/undefined|null|Error/.test(e)));
+});
+
+test('attachments: per-message file count and total size limits apply across picks', () => {
+  const max = CHAT_ATTACHMENT_RULES.maxFiles;
+  const already = Array.from({ length: max - 1 }, () => 1000);
+  const tooMany = validateNewAttachments(already, [
+    { name: 'a.png', size: 1000, type: 'image/png' },
+    { name: 'b.png', size: 1000, type: 'image/png' },
+  ]);
+  assert.equal(tooMany.accepted.length, 1);
+  assert.match(tooMany.errors[0], new RegExp(`up to ${max} files`));
+
+  const total = validateNewAttachments([CHAT_ATTACHMENT_RULES.maxTotalBytes - 10], [
+    { name: 'big.png', size: 1000, type: 'image/png' },
+  ]);
+  assert.equal(total.accepted.length, 0);
+  assert.match(total.errors[0], /too large/);
+});
+
+test('attachments: content must really be the claimed type (renamed/corrupt files are unreadable)', () => {
+  assert.equal(matchesSignature('JVBERi0xLjcK', 'application/pdf'), true);
+  assert.equal(matchesSignature('iVBORw0KGgoAAA', 'image/png'), true);
+  assert.equal(matchesSignature('SGVsbG8gd29ybGQ=', 'application/pdf'), false, 'text renamed to .pdf');
+  assert.equal(matchesSignature('', 'image/png'), false);
+});
+
+test('chat: attachments are sent with their message, kept for Try Again, and only named in later history', async () => {
+  const calls: { history: unknown; message: string; blocks: unknown[] }[] = [];
+  let fail = true;
+  const session = new AiChatSession(async (history, message, blocks) => {
+    calls.push({ history, message, blocks });
+    if (fail) throw new AiRequestError('TIMEOUT');
+    return 'Your payslip shows a basic salary.';
+  });
+
+  const file = { name: 'payslip.pdf', kind: 'pdf' as const, block: { type: 'document' as const, mediaType: 'application/pdf', base64Data: 'JVBER' } };
+
+  assert.equal(session.canSend('', 1), true, 'files alone can be sent');
+  await session.send('', [file]);
+  assert.equal(calls[0].blocks.length, 1);
+  assert.ok(calls[0].message.length > 0, 'a default prompt is used when only files are sent');
+  assert.deepEqual(session.state.messages[0].attachments, [{ name: 'payslip.pdf', kind: 'pdf' }]);
+  assert.ok(!JSON.stringify(session.state).includes('JVBER'), 'file data is not kept in visible state');
+
+  fail = false;
+  await session.retry();
+  assert.equal(calls[1].blocks.length, 1, 'Try Again resends the file');
+
+  await session.send('And the HRA?');
+  assert.equal(calls[2].blocks.length, 0, 'files are not resent with later turns');
+  assert.match(JSON.stringify(calls[2].history), /Attached earlier: payslip\.pdf/);
 });

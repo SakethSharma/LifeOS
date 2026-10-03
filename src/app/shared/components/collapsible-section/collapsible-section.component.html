@@ -4,6 +4,7 @@
     class="collapsible-toggle"
     (click)="toggle()"
     [attr.aria-expanded]="expanded()"
+    [attr.aria-controls]="bodyId"
   >
     <div class="collapsible-header-slot">
       <ng-content select="[collapsible-header]"></ng-content>
@@ -17,7 +18,7 @@
   </button>
 
   @if (expanded()) {
-    <div class="collapsible-body">
+    <div class="collapsible-body" [id]="bodyId">
       <ng-content></ng-content>
     </div>
   }

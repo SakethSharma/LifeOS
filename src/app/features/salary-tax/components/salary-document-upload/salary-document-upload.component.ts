@@ -9,7 +9,7 @@ import { AI_LIMITS } from '../../../../core/ai/ai-contract';
 import type { AiErrorCode } from '../../../../core/ai/ai-contract';
 import { AiRequestError, describeAiError, toAiErrorCode } from '../../../../core/ai/ai-errors';
 import type { AiErrorAction, AiErrorView } from '../../../../core/ai/ai-errors';
-import { AI_CONNECT_FRAGMENT } from '../../../../core/ai/ai-provider-guides';
+import { AI_CONNECT_FRAGMENT, AI_SETUP_ROUTE } from '../../../../core/ai/ai-provider-guides';
 import type { DocumentExtractionResult } from '../../models/document-extraction.model';
 
 type FileKind = 'text' | 'image' | 'pdf' | 'unsupported';
@@ -29,7 +29,7 @@ const DOCUMENT_ERROR_OVERRIDES: Partial<Record<AiErrorCode, Partial<AiErrorView>
   NOT_CONFIGURED: {
     title: "AI isn't connected yet",
     message:
-      'Reading images and PDFs needs an AI provider. Connect one once in AI Insights, or paste the details as text or enter them manually.',
+      'Reading images and PDFs needs an AI provider. Connect one once on the Info page, or paste the details as text or enter them manually.',
     action: 'connect',
     actionLabel: 'Connect AI',
   },
@@ -139,7 +139,7 @@ export class SalaryDocumentUploadComponent {
         break;
       case 'connect':
       case 'check-key':
-        await this.router.navigate(['/ai-insights'], { fragment: AI_CONNECT_FRAGMENT });
+        await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
         break;
       case 'retry':
         if (this.lastRun) {

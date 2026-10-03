@@ -344,3 +344,56 @@ test('normalizeTurns: starts with the user and merges consecutive same-role turn
     ],
   );
 });
+
+// ---- Chat attachments ------------------------------------------------------------------
+
+test('chat: attachments ride with the newest user message as provider file parts', async () => {
+  const { deps, providerCalls } = setup(() => json(200, { content: [{ type: 'text', text: 'I can see a payslip.' }] }));
+
+  const res = await read(
+    await handleChat(
+      post(
+        {
+          provider: 'anthropic',
+          history: [
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', content: 'Hello!' },
+          ],
+          message: 'What does this show?',
+          context: null,
+          attachments: [
+            { type: 'image', mediaType: 'image/png', base64Data: 'iVBORw0KGgo=' },
+            { type: 'document', mediaType: 'application/pdf', base64Data: 'JVBERi0x' },
+          ],
+        },
+        await credentialFor('anthropic'),
+      ),
+      deps,
+    ),
+  );
+
+  assert.equal(res.body['message'], 'I can see a payslip.');
+  const messages = JSON.parse(String(providerCalls[0].init.body)).messages;
+  assert.equal(messages[0].content, 'Hi', 'history stays text-only');
+  const last = messages.at(-1).content;
+  assert.deepEqual(last.map((b: { type: string }) => b.type), ['image', 'document', 'text']);
+  assert.equal(last[2].text, 'What does this show?');
+});
+
+test('chat: too many or unsupported attachments are rejected before calling the provider', async () => {
+  const { deps, providerCalls } = setup(() => openAiReply('x'));
+  const cred = await credentialFor();
+  const png = { type: 'image', mediaType: 'image/png', base64Data: 'iVBORw0KGgo=' };
+
+  for (const attachments of [
+    [png, png, png, png],
+    [{ type: 'image', mediaType: 'image/svg+xml', base64Data: 'PHN2Zz4=' }],
+    [{ type: 'document', mediaType: 'application/pdf', base64Data: '<script>' }],
+    'not-an-array',
+  ]) {
+    const res = await read(await handleChat(post({ provider: 'openai', message: 'Hi', attachments }, cred), deps));
+    assert.equal(res.body['errorCode'], 'INVALID_REQUEST');
+  }
+
+  assert.equal(providerCalls.length, 0);
+});

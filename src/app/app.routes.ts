@@ -47,6 +47,13 @@ export const routes: Routes = [
       },
 
       {
+        path: "info",
+        loadComponent: () =>
+          import("./features/info/info.component").then((m) => m.InfoComponent),
+        title: "Info — LifeOS",
+      },
+
+      {
         path: "settings",
         loadComponent: () =>
           import("./features/settings/settings.component").then(

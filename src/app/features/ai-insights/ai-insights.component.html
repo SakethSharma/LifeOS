@@ -1,67 +1,77 @@
-<section class="insights-page">
-  <header class="page-header">
-    <div>
-      <span class="eyebrow">Personal Intelligence</span>
-
-      <h1>AI Insights</h1>
-
+<section class="chat-page" [class.started]="hasConversation()" aria-labelledby="ask-ai-title">
+  @if (!hasConversation()) {
+    <header class="intro">
+      <div class="intro-icon" aria-hidden="true">✦</div>
+      <h1 id="ask-ai-title">Ask AI</h1>
       <p>
-        Ask questions about your finances and get answers based on the numbers
-        LifeOS has already calculated.
+        Understand your income and expenses, discover spending patterns, and get
+        personalized insights to help you plan your finances and work towards
+        financial stability.
       </p>
-    </div>
 
-    <div class="header-badge {{ badge().cls }}">
-      <span class="status-dot"></span>
-      {{ badge().text }}
-    </div>
-  </header>
-
-  <section class="prompt-card chat-card" aria-labelledby="chat-title">
-    <div class="chat-head">
-      <h2 id="chat-title" class="chat-title"><span aria-hidden="true">✨</span> AI Insights</h2>
+      @if (!isConnected()) {
+        <p class="setup-note">
+          AI isn't connected yet.
+          <a [routerLink]="setupRoute" [fragment]="connectFragment">Set up AI in Info →</a>
+        </p>
+      } @else {
+        <div class="suggestions" aria-label="Suggested questions">
+          @for (p of suggestedPrompts; track p) {
+            <button type="button" class="suggestion" (click)="usePrompt(p)">{{ p }}</button>
+          }
+        </div>
+      }
+    </header>
+  } @else {
+    <header class="toolbar">
+      <h1 id="ask-ai-title" class="toolbar-title"><span aria-hidden="true">✦</span> Ask AI</h1>
 
       <button
         type="button"
         class="btn btn-ghost btn-sm reset-btn"
-        [disabled]="!hasConversation() && !question()"
+        [disabled]="chat().pending"
         (click)="resetConversation()"
         aria-label="Reset conversation"
       >
         ↻ Reset
       </button>
-    </div>
+    </header>
 
-    <p class="chat-sub">Ask LifeOS anything about your finances.</p>
+    <ol class="conversation" aria-label="Conversation" aria-live="polite">
+      @for (m of chat().messages; track m.id) {
+        <li class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
+          <span class="visually-hidden">{{ m.role === "user" ? "You said:" : "LifeOS AI said:" }}</span>
 
-    @if (!isConnected() && !hasConversation()) {
-      <app-ai-status-card class="chat-status" tone="info" [view]="notConnectedView" (action)="handleAction($event)" />
-    }
+          @if (m.role === "assistant") {
+            <span class="msg-avatar" aria-hidden="true">✦</span>
+          }
 
-    @if (isConnected() && !online()) {
-      <p class="offline-note" role="status">
-        You're offline. AI answers need an internet connection — everything else
-        in LifeOS keeps working.
-      </p>
-    }
-
-    @if (chat().messages.length > 0) {
-      <ol class="conversation" aria-label="Conversation" aria-live="polite">
-        @for (m of chat().messages; track m.id) {
-          <li class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
-            <span class="msg-role">{{ m.role === "user" ? "You" : "✦ LifeOS AI" }}</span>
+          <div class="msg-body">
+            @if (m.attachments?.length) {
+              <ul class="msg-files" aria-label="Attached files">
+                @for (f of m.attachments; track $index) {
+                  <li class="msg-file">
+                    <span aria-hidden="true">{{ f.kind === "pdf" ? "📄" : "🖼" }}</span>
+                    <span class="file-name">{{ f.name }}</span>
+                  </li>
+                }
+              </ul>
+            }
             <p class="msg-text">{{ m.content }}</p>
-          </li>
-        }
-      </ol>
-    }
+          </div>
+        </li>
+      }
 
-    @if (chat().pending) {
-      <div class="prompt-loading" role="status" aria-live="polite">
-        <span class="prompt-spinner" aria-hidden="true"></span>
-        Thinking…
-      </div>
-    }
+      @if (chat().pending) {
+        <li class="msg assistant thinking" role="status">
+          <span class="msg-avatar" aria-hidden="true">✦</span>
+          <div class="msg-body">
+            <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span class="thinking-text">Thinking…</span>
+          </div>
+        </li>
+      }
+    </ol>
 
     @if (errorView(); as view) {
       <app-ai-status-card class="chat-status" [view]="view" (action)="handleAction($event)" />
@@ -73,137 +83,112 @@
         <button type="button" class="btn btn-sm" (click)="sendUnanswered()">Ask now</button>
       </div>
     }
+  }
 
-    <div #conversationEnd></div>
+  <div #conversationEnd class="conversation-end"></div>
 
-    @if (isConnected() && chat().messages.length === 0 && !chat().pending) {
-      <div class="suggestions" aria-label="Suggested questions">
-        @for (p of suggestedPrompts; track p) {
-          <button type="button" class="suggestion" (click)="usePrompt(p)">{{ p }}</button>
-        }
+  <form class="composer" (ngSubmit)="submitPrompt()">
+    @if (isConnected() && !online()) {
+      <p class="composer-note" role="status">You're offline — AI needs internet. Everything else keeps working.</p>
+    }
+
+    @if (attachmentErrors().length > 0) {
+      <div class="attach-errors" role="alert">
+        <ul>
+          @for (e of attachmentErrors(); track $index) {
+            <li>{{ e }}</li>
+          }
+        </ul>
+        <button type="button" class="attach-errors-close" aria-label="Dismiss" (click)="dismissAttachmentErrors()">✕</button>
       </div>
     }
 
-    <form class="prompt-form" (ngSubmit)="submitPrompt()">
-      <label class="prompt-label visually-hidden" for="ai-prompt">Ask about your finances</label>
+    <div class="composer-box" [class.busy]="chat().pending">
+      @if (attachments().length > 0 || readingFiles()) {
+        <ul class="attachment-chips" aria-label="Files to send">
+          @for (a of attachments(); track a.id) {
+            <li class="chip">
+              @if (a.previewUrl) {
+                <img class="chip-thumb" [src]="a.previewUrl" alt="" />
+              } @else {
+                <span class="chip-thumb chip-pdf" aria-hidden="true">PDF</span>
+              }
+              <span class="chip-text">
+                <span class="chip-name">{{ a.name }}</span>
+                <span class="chip-size">{{ formatSize(a.size) }}</span>
+              </span>
+              <button
+                type="button"
+                class="chip-remove"
+                [attr.aria-label]="'Remove ' + a.name"
+                [disabled]="chat().pending"
+                (click)="removeAttachment(a.id)"
+              >
+                ✕
+              </button>
+            </li>
+          }
+          @if (readingFiles()) {
+            <li class="chip reading" role="status">Reading file…</li>
+          }
+        </ul>
+      }
 
-      <div class="prompt-row">
+      <div class="composer-row">
+        <button
+          type="button"
+          class="icon-btn attach-btn"
+          [disabled]="!canAttachMore()"
+          (click)="openFilePicker()"
+          [attr.aria-label]="'Attach images or PDFs (up to ' + maxFiles + ')'"
+          title="Attach images or PDFs"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+          </svg>
+        </button>
+
+        <input
+          #fileInput
+          type="file"
+          class="visually-hidden"
+          tabindex="-1"
+          aria-hidden="true"
+          multiple
+          [accept]="accept"
+          (change)="onFilesPicked($event)"
+        />
+
+        <label class="visually-hidden" for="ai-prompt">Ask about your finances</label>
         <textarea
+          #promptInput
           id="ai-prompt"
           name="prompt"
-          class="form-control prompt-input"
-          rows="2"
-          placeholder="Ask something…"
+          class="prompt-input"
+          rows="1"
+          placeholder="Ask anything…"
+          enterkeyhint="send"
           [maxlength]="maxMessageChars"
           [ngModel]="question()"
-          (ngModelChange)="question.set($event)"
-          (keydown.enter)="onPromptEnter($event)"
+          (ngModelChange)="onPromptInput($event)"
+          (keydown)="onPromptKeydown($event)"
         ></textarea>
 
-        <button type="submit" class="btn send-btn" [disabled]="!canSend()">
-          {{ chat().pending ? "Sending…" : "Send" }}
+        <button type="submit" class="icon-btn send-btn" [disabled]="!canSend()" aria-label="Send">
+          @if (chat().pending) {
+            <span class="send-spinner" aria-hidden="true"></span>
+          } @else {
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          }
         </button>
       </div>
-
-      <span class="prompt-hint">Enter to send · Shift+Enter for a new line</span>
-    </form>
-  </section>
-
-  @if (showSetup()) {
-    <section #setupSection id="ai-connect" class="setup-card" aria-labelledby="ai-connect-title">
-      <app-ai-connection-panel
-        (guideRequested)="openGuide()"
-        (providerChange)="guideProvider.set($event)"
-        (disconnected)="onDisconnected()"
-      />
-
-      <div class="guide-block">
-        <app-collapsible-section [(expanded)]="guideExpanded">
-          <div collapsible-header>
-            <h2 class="guide-title">How to connect your AI</h2>
-            <p class="guide-sub">A quick visual walkthrough for getting your API key.</p>
-          </div>
-
-          <app-ai-setup-carousel [provider]="guideProvider()" />
-        </app-collapsible-section>
-      </div>
-
-      @if (isConnected()) {
-        <button type="button" class="btn btn-ghost btn-sm close-setup" (click)="closeSetup()">Hide AI settings</button>
-      }
-    </section>
-  } @else {
-    <section class="connection-summary">
-      <span class="summary-text">
-        <span class="summary-check" aria-hidden="true">✓</span>
-        Connected to {{ connectedProviderLabel() }}
-        <span class="summary-key">{{ connection()?.keyHint }}</span>
-      </span>
-
-      <button type="button" class="btn btn-secondary btn-sm" (click)="openSetup({ guide: false, changeKey: false })">
-        Manage AI
-      </button>
-    </section>
-  }
-
-  <section class="insight-grid">
-    <article class="insight-card">
-      <div class="insight-icon blue">◈</div>
-
-      <h2>Spending Analysis</h2>
-
-      <p>
-        Ask where your money goes — AI answers using your category totals and
-        largest recent expenses.
-      </p>
-    </article>
-
-    <article class="insight-card">
-      <div class="insight-icon green">↗</div>
-
-      <h2>Savings Opportunities</h2>
-
-      <p>
-        Compare months and ask why your savings changed, based on the income and
-        expenses you've recorded.
-      </p>
-    </article>
-
-    <article class="insight-card">
-      <div class="insight-icon amber">⌁</div>
-
-      <h2>Behavioural Patterns</h2>
-
-      <p>
-        Look at your six-month trend to spot changes in your monthly income and
-        spending.
-      </p>
-    </article>
-
-    <article class="insight-card">
-      <div class="insight-icon purple">✧</div>
-
-      <h2>Salary &amp; Tax</h2>
-
-      <p>
-        After you run the Salary &amp; Income Tax calculator, AI can explain your
-        result using LifeOS's own numbers.
-      </p>
-    </article>
-  </section>
-
-  <section class="privacy-card">
-    <div class="privacy-icon">⌑</div>
-
-    <div>
-      <h2>Privacy-first intelligence</h2>
-
-      <p>
-        AI only sees summaries LifeOS calculates on this device: totals,
-        categories, dates, and amounts. Transaction descriptions, notes, and
-        payment details are never sent. Your AI provider processes these
-        summaries under its own terms, and you can disconnect at any time.
-      </p>
     </div>
-  </section>
+
+    <p class="composer-hint">
+      <span class="hint-keys">Enter to send · Shift+Enter for a new line · </span>Images &amp; PDFs up to {{ maxFileMb }} MB
+    </p>
+  </form>
 </section>

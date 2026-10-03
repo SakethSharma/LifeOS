@@ -77,6 +77,8 @@ export interface AiChatRequest {
   history: AiChatTurn[];
   message: string;
   context: AiFinancialContext | null;
+  /** Files attached to this message only (not resent with later turns). */
+  attachments?: AiContentBlock[];
 }
 
 export type AiExtractTask = 'salary_document';
@@ -134,6 +136,8 @@ export const AI_LIMITS = {
   /** Base64 characters across all blocks; keeps requests under the 6 MB function payload cap. */
   maxExtractBase64Chars: 5_500_000,
   maxExtractTextChars: 40_000,
+  /** Files per chat message. */
+  maxChatAttachments: 3,
 } as const;
 
 // ---- Helpers ----------------------------------------------------------------

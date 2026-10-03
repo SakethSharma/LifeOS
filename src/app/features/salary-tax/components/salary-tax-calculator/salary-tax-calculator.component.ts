@@ -64,7 +64,7 @@ export class SalaryTaxCalculatorComponent {
   symbol = this.settingsService.currencySymbol;
   availableYears = this.taxRulesService.availableYears;
 
-  expanded = signal(true);
+  expanded = signal(false);
 
   taxYearId = signal(this.taxRulesService.defaultYearId);
   regime = signal<TaxRegimeId>('new');

@@ -23,7 +23,6 @@ export class AiSetupCarouselComponent {
   /** Restarts at step 1 whenever the provider changes. */
   index = linkedSignal({ source: this.provider, computation: () => 0 });
 
-  step = computed(() => this.steps()[clampStep(this.index(), this.steps().length)]);
   isFirst = computed(() => this.index() === 0);
   isLast = computed(() => this.index() === this.steps().length - 1);
 

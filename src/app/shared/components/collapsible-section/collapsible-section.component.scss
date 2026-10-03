@@ -18,6 +18,12 @@
   font: inherit;
 }
 
+.collapsible-toggle:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+
 .collapsible-header-slot {
   flex: 1;
   min-width: 0;

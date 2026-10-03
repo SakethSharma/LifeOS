@@ -272,4 +272,22 @@
   .layout-footer {
     padding: 0 1rem calc(var(--bottom-nav-height) + 1rem);
   }
+
+  /* Space that fixed bottom UI (e.g. the AI chat composer) must leave free. */
+  .app-layout {
+    --bottom-ui-offset: var(--bottom-nav-height);
+  }
+
+  /* Keyboard open: get the bottom bar out of the way of the focused field. */
+  .keyboard-open {
+    --bottom-ui-offset: 0px;
+  }
+
+  .keyboard-open .bottom-nav {
+    display: none;
+  }
+
+  .keyboard-open .layout-footer {
+    padding-bottom: 1rem;
+  }
 }

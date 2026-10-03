@@ -1,5 +1,5 @@
 <div class="connect-head">
-  <h2 id="ai-connect-title">AI Provider</h2>
+  <h3 id="ai-connect-title">AI provider</h3>
   <span class="connection-pill {{ pill().cls }}" role="status">{{ pill().text }}</span>
 </div>
 
@@ -90,10 +90,6 @@
     @if (validationMessage()) {
       <p class="field-error" role="alert">{{ validationMessage() }}</p>
     }
-
-    <button type="button" class="link-btn" (click)="guideRequested.emit()">
-      Don't have a key? See how to get one ↓
-    </button>
   </div>
 
   <div class="connect-actions">
@@ -113,6 +109,10 @@
     }
   </div>
 }
+
+<button type="button" class="link-btn" (click)="guideRequested.emit()">
+  Don't have a key? See how ↓
+</button>
 
 @if (testing()) {
   <p class="testing-note" role="status" aria-live="polite">

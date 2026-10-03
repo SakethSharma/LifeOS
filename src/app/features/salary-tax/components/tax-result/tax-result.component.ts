@@ -6,7 +6,7 @@ import { AiContextService } from '../../../../core/services/ai-context.service';
 import type { AiErrorCode } from '../../../../core/ai/ai-contract';
 import { describeAiError, toAiErrorCode } from '../../../../core/ai/ai-errors';
 import type { AiErrorAction } from '../../../../core/ai/ai-errors';
-import { AI_CONNECT_FRAGMENT } from '../../../../core/ai/ai-provider-guides';
+import { AI_CONNECT_FRAGMENT, AI_SETUP_ROUTE } from '../../../../core/ai/ai-provider-guides';
 import { CurrencyFormatPipe } from '../../../../shared/pipes/currency-format.pipe';
 import { CollapsibleSectionComponent } from '../../../../shared/components/collapsible-section/collapsible-section.component';
 import { AiStatusCardComponent } from '../../../../shared/components/ai-status-card/ai-status-card.component';
@@ -85,11 +85,11 @@ export class TaxResultComponent {
     if (action === 'retry') {
       await this.explainWithAi();
     } else {
-      await this.router.navigate(['/ai-insights'], { fragment: AI_CONNECT_FRAGMENT });
+      await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
     }
   }
 
   async connectAi(): Promise<void> {
-    await this.router.navigate(['/ai-insights'], { fragment: AI_CONNECT_FRAGMENT });
+    await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
   }
 }

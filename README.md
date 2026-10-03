@@ -13,7 +13,7 @@ App (browser / Android)  ──HTTPS──▶  LifeOS AI backend (Netlify Functi
                                      netlify/functions/ai-*.mts
 ```
 
-- **Connect**: the user pastes a key in AI Insights → AI Provider. The app
+- **Connect**: the user pastes a key in **Info → AI Insights → Connect AI to LifeOS**. The app
   sends it once to `/api/ai/connect`. The backend makes a real, free call to
   the provider (a model listing) to check it, then encrypts the key with
   AES-256-GCM using `AI_CREDENTIAL_SECRET` and returns that sealed token plus
@@ -33,7 +33,8 @@ App (browser / Android)  ──HTTPS──▶  LifeOS AI backend (Netlify Functi
 - **What AI sees**: aggregated numbers LifeOS already calculated: monthly
   totals, category totals, the six-month trend, and the five largest recent
   expenses (date, category, amount). When the calculator has been run, it also
-  gets the salary/tax result. Transaction descriptions, notes, payment
+  gets the salary/tax result, plus any images/PDFs the user attaches to a chat
+  message. Transaction descriptions, notes, payment
   methods and ids are never sent. The accuracy rules (use only LifeOS numbers,
   never compute tax/PF/EMI) live server-side in `netlify/ai/prompts.ts`.
 

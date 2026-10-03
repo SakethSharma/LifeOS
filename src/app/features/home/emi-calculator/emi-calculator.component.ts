@@ -20,7 +20,7 @@ export class EmiCalculatorComponent {
   private readonly destroyRef = inject(DestroyRef);
   private timer: ReturnType<typeof setTimeout> | undefined;
 
-  expanded = signal(true);
+  expanded = signal(false);
 
   principal = signal<number | null>(null);
   rate = signal("");

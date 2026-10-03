@@ -1,7 +1,13 @@
 import type { AiProviderId } from './ai-contract';
 
-/** Route fragment that opens the AI connection section: /ai-insights#ai-connect. */
+/** Where AI setup lives. Deep links: /info#ai-connect and /info#ai-key-guide. */
+export const AI_SETUP_ROUTE = '/info';
+
+/** Opens "Connect AI to LifeOS" on the Info page. */
 export const AI_CONNECT_FRAGMENT = 'ai-connect';
+
+/** Opens "How to Get Your AI API Key" (the carousel) on the Info page. */
+export const AI_KEY_GUIDE_FRAGMENT = 'ai-key-guide';
 
 /** Which schematic picture a setup step shows. Illustrations are drawn by the carousel, not screenshots. */
 export type GuideIllustration = 'open-site' | 'find-keys' | 'create-key' | 'copy-key' | 'billing' | 'paste-key';
@@ -42,7 +48,7 @@ export const AI_PROVIDERS: AiProviderInfo[] = [
     steps: [
       {
         title: 'Open the OpenAI API platform and sign in',
-        body: "Go to the OpenAI API platform — not the ChatGPT chat page — and log in or sign up. You can use your ChatGPT email, but ChatGPT and the API are separate products: a ChatGPT plan doesn't include API access.",
+        body: "Go to the OpenAI API platform — not ChatGPT — and log in or sign up. A ChatGPT plan doesn't include API access.",
         illustration: 'open-site',
         illustrationText: 'platform.openai.com',
         link: { label: 'Open OpenAI platform', url: OPENAI_PLATFORM },
@@ -56,25 +62,25 @@ export const AI_PROVIDERS: AiProviderInfo[] = [
       },
       {
         title: 'Create a new secret key',
-        body: 'Select "Create new secret key", give it a name you will recognise, such as "LifeOS", and confirm.',
+        body: 'Select "Create new secret key", name it something you\'ll recognise, like "LifeOS", and confirm.',
         illustration: 'create-key',
         illustrationText: '+ Create new secret key',
       },
       {
         title: 'Copy the key and keep it private',
-        body: 'Copy the key right away — OpenAI shows it only once. Treat it like a password: never share it or post it anywhere.',
+        body: "Copy it right away — it's shown only once. Keep it private, like a password.",
         illustration: 'copy-key',
         illustrationText: 'sk-••••••••••••',
       },
       {
         title: 'Check your API billing',
-        body: 'API usage is billed by OpenAI to your API account, separately from ChatGPT. If requests fail with a credit message, add credit or check limits in billing.',
+        body: 'API usage is billed separately from ChatGPT. If you later see a credit message, add credit or check limits here.',
         illustration: 'billing',
         link: { label: 'Open billing', url: OPENAI_BILLING },
       },
       {
         title: 'Paste it into LifeOS',
-        body: 'Come back here, paste the key into the API Key field above, and tap "Test Connection". LifeOS checks it with OpenAI before saving.',
+        body: 'Back in LifeOS, paste the key into the API Key field above and tap "Test Connection".',
         illustration: 'paste-key',
       },
     ],
@@ -88,7 +94,7 @@ export const AI_PROVIDERS: AiProviderInfo[] = [
     steps: [
       {
         title: 'Open the Anthropic Console and sign in',
-        body: "Go to the Anthropic Console — not the Claude chat app — and sign in or create an account. The Claude app and the API are separate products: a Claude plan doesn't include API access.",
+        body: "Go to the Anthropic Console — not the Claude app — and sign in or sign up. A Claude plan doesn't include API access.",
         illustration: 'open-site',
         illustrationText: 'console.anthropic.com',
         link: { label: 'Open Anthropic Console', url: ANTHROPIC_CONSOLE },
@@ -108,19 +114,19 @@ export const AI_PROVIDERS: AiProviderInfo[] = [
       },
       {
         title: 'Copy the key and keep it private',
-        body: 'Copy the key right away — it is shown only once. Treat it like a password: never share it or post it anywhere.',
+        body: "Copy it right away — it's shown only once. Keep it private, like a password.",
         illustration: 'copy-key',
         illustrationText: 'sk-ant-••••••••••',
       },
       {
         title: 'Check your API billing',
-        body: 'API usage is billed by Anthropic to your Console account. If requests fail with a credit message, add credit or check limits in billing.',
+        body: 'API usage is billed separately from Claude plans. If you later see a credit message, add credit or check limits here.',
         illustration: 'billing',
         link: { label: 'Open billing', url: ANTHROPIC_BILLING },
       },
       {
         title: 'Paste it into LifeOS',
-        body: 'Come back here, paste the key into the API Key field above, and tap "Test Connection". LifeOS checks it with Anthropic before saving.',
+        body: 'Back in LifeOS, paste the key into the API Key field above and tap "Test Connection".',
         illustration: 'paste-key',
       },
     ],

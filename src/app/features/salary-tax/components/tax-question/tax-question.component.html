@@ -26,11 +26,11 @@
       @switch (meta().id) {
         @case ("hra") {
           <div class="form-group">
-            <label class="form-label" for="tq-hra-received"
+            <label class="form-label" [for]="'tq-hra-received' + idSuffix()"
               >HRA received (₹/year)</label
             >
             <input
-              id="tq-hra-received"
+              [id]="'tq-hra-received' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -40,11 +40,11 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="tq-rent-paid"
+            <label class="form-label" [for]="'tq-rent-paid' + idSuffix()"
               >Rent paid (₹/year)</label
             >
             <input
-              id="tq-rent-paid"
+              [id]="'tq-rent-paid' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -66,11 +66,11 @@
 
         @case ("section80C") {
           <div class="form-group">
-            <label class="form-label" for="tq-80c">
+            <label class="form-label" [for]="'tq-80c' + idSuffix()">
               Total Section 80C investments (₹/year, cap ₹1,50,000)
             </label>
             <input
-              id="tq-80c"
+              [id]="'tq-80c' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -82,11 +82,11 @@
 
         @case ("section80D") {
           <div class="form-group">
-            <label class="form-label" for="tq-80d-self"
+            <label class="form-label" [for]="'tq-80d-self' + idSuffix()"
               >Health insurance — self &amp; family (₹/year)</label
             >
             <input
-              id="tq-80d-self"
+              [id]="'tq-80d-self' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -105,11 +105,11 @@
           </label>
 
           <div class="form-group">
-            <label class="form-label" for="tq-80d-parents"
+            <label class="form-label" [for]="'tq-80d-parents' + idSuffix()"
               >Health insurance — parents (₹/year)</label
             >
             <input
-              id="tq-80d-parents"
+              [id]="'tq-80d-parents' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -130,11 +130,11 @@
 
         @case ("homeLoanInterest") {
           <div class="form-group">
-            <label class="form-label" for="tq-homeloan">
+            <label class="form-label" [for]="'tq-homeloan' + idSuffix()">
               Home loan interest paid (₹/year, cap ₹2,00,000)
             </label>
             <input
-              id="tq-homeloan"
+              [id]="'tq-homeloan' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -146,11 +146,11 @@
 
         @case ("educationLoanInterest") {
           <div class="form-group">
-            <label class="form-label" for="tq-eduloan"
+            <label class="form-label" [for]="'tq-eduloan' + idSuffix()"
               >Education loan interest paid (₹/year)</label
             >
             <input
-              id="tq-eduloan"
+              [id]="'tq-eduloan' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -162,11 +162,11 @@
 
         @case ("nps") {
           <div class="form-group">
-            <label class="form-label" for="tq-nps">
+            <label class="form-label" [for]="'tq-nps' + idSuffix()">
               NPS contribution — 80CCD(1B) (₹/year, cap ₹50,000)
             </label>
             <input
-              id="tq-nps"
+              [id]="'tq-nps' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
@@ -178,11 +178,11 @@
 
         @case ("donations") {
           <div class="form-group">
-            <label class="form-label" for="tq-donation"
+            <label class="form-label" [for]="'tq-donation' + idSuffix()"
               >Donation amount (₹/year)</label
             >
             <input
-              id="tq-donation"
+              [id]="'tq-donation' + idSuffix()"
               class="form-control"
               type="text"
               inputmode="numeric"
