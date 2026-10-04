@@ -11,7 +11,8 @@ import type { TaxQuestionAnswer, TaxQuestionId } from '../../models/tax-question
 import type { SalaryManualInput } from '../../models/salary.model';
 import type { RegimeComparison, TaxCalculationResult } from '../../models/tax.model';
 import type { TaxRegimeId } from '../../models/tax-rules.model';
-import type { DocumentExtractionResult } from '../../models/document-extraction.model';
+import type { DocumentExtractionResult, ExtractedTaxDetails } from '../../models/document-extraction.model';
+import { DEDUCTION_LABELS, applyDeductionsToAnswers, matchTaxYear } from '../../utils/tax-extraction.util';
 
 import { SalaryInputComponent } from '../salary-input/salary-input.component';
 import { RegimeSelectorComponent } from '../regime-selector/regime-selector.component';
@@ -76,6 +77,11 @@ export class SalaryTaxCalculatorComponent {
   answers = signal<Record<TaxQuestionId, TaxQuestionAnswer>>(createInitialAnswers());
   activeQuestionIndex = signal(0);
 
+  /** Notes about detected details LifeOS couldn't apply, shown with the result. Never assumed values. */
+  detectionNotes = signal<string[]>([]);
+  /** Tax already deducted, as stated in the user's input (for comparison only). */
+  statedTds = signal<number | null>(null);
+
   result = signal<TaxCalculationResult | null>(null);
   comparison = signal<RegimeComparison | null>(null);
 
@@ -135,7 +141,52 @@ export class SalaryTaxCalculatorComponent {
   }
 
   onDetected(result: DocumentExtractionResult): void {
+    this.detectionNotes.set([]);
+    this.statedTds.set(null);
     this.pendingDetection.set(result);
+  }
+
+  /** Regime, year and deductions the user stated, applied when they confirm the detected data. */
+  onConfirmTaxDetails(details: ExtractedTaxDetails): void {
+    const notes: string[] = [];
+
+    if (details.regime) {
+      this.regime.set(details.regime);
+    }
+
+    if (details.financialYear) {
+      const yearId = matchTaxYear(details.financialYear, this.availableYears);
+      if (yearId) {
+        this.taxYearId.set(yearId);
+      } else {
+        notes.push(
+          `Your details mention ${details.financialYear}, but LifeOS only has tax rules for ${this.availableYears.map((y) => y.label).join(', ')}. The estimate below uses those rules.`,
+        );
+      }
+    }
+
+    const { answers, applied } = applyDeductionsToAnswers(this.answers(), details);
+    this.answers.set(answers);
+
+    if (applied.length > 0) {
+      const names = applied.map((k) => DEDUCTION_LABELS[k]).join(', ');
+      notes.push(
+        this.regime() === 'old'
+          ? `Filled from your details: ${names}. Review them in the Old Regime questions.`
+          : `Detected ${names}. These only reduce tax under the Old Regime — switch regime above to use them.`,
+      );
+    }
+
+    if (details.rentPaidAnnual) {
+      notes.push('Rent paid was detected. To claim HRA exemption, answer the HRA question in the Old Regime questions (city type is needed).');
+    }
+
+    if (!details.regime) {
+      notes.push('No tax regime was stated, so the New Regime (the default) is used. Change it above if needed.');
+    }
+
+    this.detectionNotes.set(notes);
+    this.statedTds.set(details.tdsAnnual ?? null);
   }
 
   onConfirmDetected(fields: ConfirmedExtractedField[]): void {
@@ -148,6 +199,12 @@ export class SalaryTaxCalculatorComponent {
     });
     this.pendingDetection.set(null);
     this.clearResult();
+
+    // The user started from "Let's Calculate Tax?" and has now reviewed the values: show the result.
+    // If something essential is still missing, the existing blocked-reason note explains what.
+    if (this.canCalculate()) {
+      this.calculate();
+    }
   }
 
   onDismissDetected(): void {
@@ -203,6 +260,8 @@ export class SalaryTaxCalculatorComponent {
     this.manual.set(emptyManual());
     this.confirmed.set([]);
     this.pendingDetection.set(null);
+    this.detectionNotes.set([]);
+    this.statedTds.set(null);
     this.answers.set(createInitialAnswers());
     this.activeQuestionIndex.set(0);
     this.clearResult();

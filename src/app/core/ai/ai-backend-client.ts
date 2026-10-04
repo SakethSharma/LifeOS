@@ -5,11 +5,12 @@ import type {
   AiErrorCode,
   AiExtractRequest,
   AiMessageSuccess,
+  AiModelsSuccess,
   AiProviderId,
   AiTestSuccess,
 } from './ai-contract';
 import { AI_CREDENTIAL_HEADER, isAiErrorCode } from './ai-contract';
-import { AiRequestError } from './ai-errors';
+import { AiRequestError, abortCode, requestSignal } from './ai-errors';
 
 export interface AiBackendClientOptions {
   /** '' = same origin (the deployed PWA). null = this build has no AI backend configured. */
@@ -38,19 +39,30 @@ export class AiBackendClient {
     return this.post<AiTestSuccess>('test', { provider }, credential);
   }
 
-  async chat(request: AiChatRequest, credential: string): Promise<string> {
-    return (await this.post<AiMessageSuccess>('chat', request, credential)).message;
+  /** Text-chat models this provider offers to the saved key. */
+  models(provider: AiProviderId, credential: string): Promise<AiModelsSuccess> {
+    return this.post<AiModelsSuccess>('models', { provider }, credential);
   }
 
-  async extract(request: AiExtractRequest, credential: string): Promise<string> {
-    return (await this.post<AiMessageSuccess>('extract', request, credential)).message;
+  /** `cancel` aborts the request when the user taps Stop (→ AiRequestError CANCELLED). */
+  async chat(request: AiChatRequest, credential: string, cancel?: AbortSignal): Promise<string> {
+    return (await this.post<AiMessageSuccess>('chat', request, credential, cancel)).message;
+  }
+
+  async extract(request: AiExtractRequest, credential: string, cancel?: AbortSignal): Promise<string> {
+    return (await this.post<AiMessageSuccess>('extract', request, credential, cancel)).message;
   }
 
   private async post<T extends { success: true }>(
     path: string,
     body: unknown,
     credential: string | null,
+    cancel?: AbortSignal,
   ): Promise<T> {
+    if (cancel?.aborted) {
+      throw new AiRequestError('CANCELLED');
+    }
+
     const { baseUrl } = this.options;
 
     if (baseUrl === null) {
@@ -74,13 +86,13 @@ export class AiBackendClient {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+        signal: requestSignal(this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS, cancel),
       });
     } catch (err) {
-      const name = (err as { name?: string } | null)?.name;
+      const aborted = abortCode(err, cancel);
 
-      if (name === 'TimeoutError' || name === 'AbortError') {
-        throw new AiRequestError('TIMEOUT');
+      if (aborted) {
+        throw new AiRequestError(aborted);
       }
 
       // The connection may have dropped mid-request.
@@ -88,6 +100,11 @@ export class AiBackendClient {
     }
 
     const payload = await response.json().catch(() => null);
+
+    // Stopped while the body was still arriving: never use a partial answer.
+    if (cancel?.aborted) {
+      throw new AiRequestError('CANCELLED');
+    }
 
     if (payload && typeof payload === 'object' && 'success' in payload) {
       if (payload.success === true && response.ok) {
@@ -104,10 +121,17 @@ export class AiBackendClient {
   }
 }
 
-/** For responses that aren't from our backend at all (gateway pages, SPA fallback, 404). */
+/**
+ * For responses that aren't from the LifeOS backend at all — it always answers
+ * with JSON, so these come from whatever else is serving the app:
+ *  - 404/405 with no LifeOS body: the route doesn't exist there (e.g. a plain
+ *    static file server rejecting the POST), so the AI backend isn't running.
+ *  - 2xx without LifeOS JSON: a page (index.html) was served for an API call.
+ * Real backend errors — including its own JSON 405 — never reach this.
+ */
 function statusFallback(status: number): AiErrorCode {
   if (status === 504 || status === 408) return 'TIMEOUT';
-  if (status === 404 || (status >= 200 && status < 300)) return 'BACKEND_UNAVAILABLE';
+  if (status === 404 || status === 405 || (status >= 200 && status < 300)) return 'BACKEND_NOT_RUNNING';
   if (status >= 500) return 'SERVER_ERROR';
   return 'UNKNOWN_ERROR';
 }

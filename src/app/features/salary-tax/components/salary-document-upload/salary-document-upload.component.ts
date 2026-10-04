@@ -1,35 +1,39 @@
-import { Component, computed, inject, model, output, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SalaryParserService } from '../../services/salary-parser.service';
 import { AiDocumentService } from '../../services/ai-document.service';
+import type { ExtractionFile } from '../../services/ai-document.service';
+import { AiService } from '../../../../core/services/ai.service';
 import { CollapsibleSectionComponent } from '../../../../shared/components/collapsible-section/collapsible-section.component';
 import { AiStatusCardComponent } from '../../../../shared/components/ai-status-card/ai-status-card.component';
-import { AI_LIMITS } from '../../../../core/ai/ai-contract';
+import { AI_LIMITS, OLLAMA_PROVIDER } from '../../../../core/ai/ai-contract';
 import type { AiErrorCode } from '../../../../core/ai/ai-contract';
-import { AiRequestError, describeAiError, toAiErrorCode } from '../../../../core/ai/ai-errors';
+import { AiRequestError, describeAiError, isCancelled, toAiErrorCode } from '../../../../core/ai/ai-errors';
 import type { AiErrorAction, AiErrorView } from '../../../../core/ai/ai-errors';
 import { AI_CONNECT_FRAGMENT, AI_SETUP_ROUTE } from '../../../../core/ai/ai-provider-guides';
 import type { DocumentExtractionResult } from '../../models/document-extraction.model';
+import { isConfidentLocalParse } from '../../utils/tax-extraction.util';
 
 type FileKind = 'text' | 'image' | 'pdf' | 'unsupported';
 
 const TEXT_EXTENSIONS = ['.txt', '.csv', '.tsv'];
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const READ_ERROR = 'Could not read the file.';
+const LOCAL_READER = 'LifeOS on this device';
 
 /** Offline and "not connected" read differently here: manual entry always remains an option. */
 const DOCUMENT_ERROR_OVERRIDES: Partial<Record<AiErrorCode, Partial<AiErrorView>>> = {
   OFFLINE: {
     title: "You're offline",
-    message: 'AI document analysis requires an internet connection. You can still enter salary details manually.',
+    message: 'Your AI provider needs an internet connection. You can still enter salary details manually.',
     action: 'manual',
     actionLabel: 'Enter Manually',
   },
   NOT_CONFIGURED: {
     title: "AI isn't connected yet",
     message:
-      'Reading images and PDFs needs an AI provider. Connect one once on the Info page, or paste the details as text or enter them manually.',
+      'Reading images, PDFs and salary details written in your own words needs an AI provider. Connect one on the Info page, or enter the details manually.',
     action: 'connect',
     actionLabel: 'Connect AI',
   },
@@ -46,6 +50,9 @@ export class SalaryDocumentUploadComponent {
   private parser = inject(SalaryParserService);
   private aiDocument = inject(AiDocumentService);
   private router = inject(Router);
+  private ai = inject(AiService);
+
+  hasAlternativeProvider = this.ai.hasAlternativeProvider;
 
   expanded = model<boolean>(false);
   detected = output<DocumentExtractionResult>();
@@ -53,35 +60,56 @@ export class SalaryDocumentUploadComponent {
 
   aiAvailable = this.aiDocument.isAvailable;
   online = this.aiDocument.online;
+  needsInternet = this.aiDocument.needsInternet;
+  providerDescription = this.aiDocument.providerDescription;
+  usingOllama = computed(() => this.aiDocument.activeProvider() === OLLAMA_PROVIDER);
 
   pasteText = signal('');
+  /** The chosen file, held until the user confirms — nothing is sent on upload. */
+  stagedFile = signal<File | null>(null);
   analyzing = signal(false);
+  /** True after the user tapped Stop (shown as a note, not an error). */
+  stopped = signal(false);
   /** Plain local problems (e.g. unsupported file type). */
   error = signal<string | null>(null);
   aiErrorCode = signal<AiErrorCode | null>(null);
-  fileName = signal<string | null>(null);
+
+  fileName = computed(() => this.stagedFile()?.name ?? null);
+  canStart = computed(() => !this.analyzing() && (!!this.pasteText().trim() || !!this.stagedFile()));
 
   aiErrorView = computed<AiErrorView | null>(() => {
     const code = this.aiErrorCode();
-    return code ? { ...describeAiError(code), ...DOCUMENT_ERROR_OVERRIDES[code] } : null;
-  });
+    if (!code) return null;
 
-  private lastRun: (() => Promise<DocumentExtractionResult>) | null = null;
-  /** Bumped by reset() so a result that arrives afterwards is dropped. */
-  private generation = 0;
+    const view = { ...describeAiError(code), ...DOCUMENT_ERROR_OVERRIDES[code] };
 
-  async analyzePaste(): Promise<void> {
-    const text = this.pasteText().trim();
-
-    if (!text || this.analyzing()) {
-      return;
+    if (code === 'UNSUPPORTED_CAPABILITY' && this.usingOllama()) {
+      return {
+        ...view,
+        title: "Ollama can't read this file",
+        message:
+          "Ollama can't read PDFs, and images need a vision model (e.g. llama3.2-vision). Paste the salary details as text instead, or switch to a cloud provider.",
+      };
     }
 
-    this.fileName.set(null);
-    await this.runExtraction(() => this.extractFromText(text));
+    return view;
+  });
+
+  private inFlight: AbortController | null = null;
+  /** Bumped by stop()/reset() so a result that arrives afterwards is dropped. */
+  private generation = 0;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.inFlight?.abort());
   }
 
-  async onFileSelected(event: Event): Promise<void> {
+  onPasteInput(text: string): void {
+    this.pasteText.set(text);
+    this.stopped.set(false);
+  }
+
+  /** Validates and stages a file. Processing starts only from "Let's Calculate Tax?". */
+  onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -90,8 +118,9 @@ export class SalaryDocumentUploadComponent {
       return;
     }
 
-    this.fileName.set(file.name);
+    this.error.set(null);
     this.aiErrorCode.set(null);
+    this.stopped.set(false);
 
     const kind = classifyFile(file);
 
@@ -99,6 +128,11 @@ export class SalaryDocumentUploadComponent {
       this.error.set(
         `"${file.name}" isn't a supported file type yet. Please upload a PDF, image (JPG/PNG), CSV, or plain text file — or paste the content above instead.`,
       );
+      return;
+    }
+
+    if (file.size === 0) {
+      this.error.set(`"${file.name}" is empty. Please choose another file.`);
       return;
     }
 
@@ -110,25 +144,33 @@ export class SalaryDocumentUploadComponent {
       return;
     }
 
-    await this.runExtraction(async () => {
-      if (kind === 'text') {
-        const text = await readAsText(file);
-        return this.extractFromText(text);
-      }
+    this.stagedFile.set(file);
+  }
 
-      if (!this.aiAvailable()) {
-        throw new AiRequestError('NOT_CONFIGURED');
-      }
+  removeFile(): void {
+    this.stagedFile.set(null);
+    this.error.set(null);
+    this.aiErrorCode.set(null);
+  }
 
-      if (!this.online()) {
-        throw new AiRequestError('OFFLINE');
-      }
+  /** "Let's Calculate Tax?" — the only thing that sends input anywhere. */
+  async calculateTax(): Promise<void> {
+    if (!this.canStart()) return;
 
-      const base64Data = await readAsBase64(file);
-      const mediaType = file.type || (kind === 'pdf' ? 'application/pdf' : 'image/png');
+    const text = this.pasteText().trim();
+    const file = this.stagedFile();
+    await this.runExtraction((cancel) => this.extract(text, file, cancel));
+  }
 
-      return this.aiDocument.extractFromFile(base64Data, mediaType, kind === 'pdf' ? 'document' : 'image');
-    });
+  /** Stops processing: cancels the AI request and drops anything that arrives later. */
+  stop(): void {
+    if (!this.analyzing()) return;
+
+    this.generation++;
+    this.inFlight?.abort();
+    this.inFlight = null;
+    this.analyzing.set(false);
+    this.stopped.set(true);
   }
 
   async onAiErrorAction(action: AiErrorAction): Promise<void> {
@@ -137,14 +179,16 @@ export class SalaryDocumentUploadComponent {
         this.aiErrorCode.set(null);
         this.enterManually.emit();
         break;
+      case 'billing':
+        this.ai.openBillingPage();
+        break;
       case 'connect':
       case 'check-key':
+      case 'switch-provider':
         await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
         break;
       case 'retry':
-        if (this.lastRun) {
-          await this.runExtraction(this.lastRun);
-        }
+        await this.calculateTax();
         break;
     }
   }
@@ -152,50 +196,99 @@ export class SalaryDocumentUploadComponent {
   /** Back to the initial state: nothing pasted, no file, no errors, collapsed. */
   reset(): void {
     this.generation++;
+    this.inFlight?.abort();
+    this.inFlight = null;
     this.pasteText.set('');
-    this.fileName.set(null);
+    this.stagedFile.set(null);
     this.error.set(null);
     this.aiErrorCode.set(null);
     this.analyzing.set(false);
-    this.lastRun = null;
+    this.stopped.set(false);
     this.expanded.set(false);
   }
 
-  private async extractFromText(text: string): Promise<DocumentExtractionResult> {
-    const local = this.parser.parseText(text);
+  private async extract(text: string, file: File | null, cancel: AbortSignal): Promise<DocumentExtractionResult> {
+    const kind = file ? classifyFile(file) : null;
+    let allText = text;
 
-    // Local parsing works offline and without AI; AI is only a fallback.
-    if ((local.isRelevant && local.fields.length > 0) || !this.aiAvailable()) {
-      return local;
+    if (file && kind === 'text') {
+      const fileText = (await readAsText(file)).trim();
+      if (!fileText && !text) {
+        throw new Error(`"${file.name}" has no readable text.`);
+      }
+      allText = [text, fileText].filter(Boolean).join('\n\n');
     }
 
-    return this.aiDocument.extractFromText(text);
+    const binary = file && (kind === 'image' || kind === 'pdf') ? file : null;
+
+    // Plain "Label  Amount" text is read on this device; anything else goes to the selected AI provider.
+    if (!binary) {
+      const local = this.parser.parseText(allText);
+
+      if (isConfidentLocalParse(allText, local)) {
+        return { ...local, extractedBy: LOCAL_READER };
+      }
+
+      if (!this.aiAvailable()) {
+        // Best effort without AI — flagged, because wording like "15 LPA" can't be read reliably here.
+        const message =
+          local.message ??
+          'Without an AI provider, LifeOS can only read "Label  Amount" lines. Check every value below, or connect AI on the Info page.';
+        return { ...local, message, extractedBy: LOCAL_READER };
+      }
+    } else if (!this.aiAvailable()) {
+      throw new AiRequestError('NOT_CONFIGURED');
+    }
+
+    if (this.needsInternet() && !this.online()) {
+      throw new AiRequestError('OFFLINE');
+    }
+
+    let extractionFile: ExtractionFile | undefined;
+
+    if (binary) {
+      extractionFile = {
+        kind: kind === 'pdf' ? 'document' : 'image',
+        mediaType: binary.type || (kind === 'pdf' ? 'application/pdf' : 'image/png'),
+        base64Data: await readAsBase64(binary),
+      };
+    }
+
+    return this.aiDocument.extract({ text: allText, file: extractionFile }, cancel);
   }
 
-  private async runExtraction(run: () => Promise<DocumentExtractionResult>): Promise<void> {
-    const generation = this.generation;
+  private async runExtraction(run: (cancel: AbortSignal) => Promise<DocumentExtractionResult>): Promise<void> {
+    const generation = ++this.generation;
+    this.inFlight?.abort();
+    const controller = new AbortController();
+    this.inFlight = controller;
 
-    this.lastRun = run;
     this.error.set(null);
     this.aiErrorCode.set(null);
+    this.stopped.set(false);
     this.analyzing.set(true);
 
     try {
-      const result = await run();
+      const result = await run(controller.signal);
       if (generation === this.generation) {
         this.detected.emit(result);
       }
     } catch (err) {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation || isCancelled(err)) return;
 
-      if (err instanceof Error && err.message === READ_ERROR) {
-        this.error.set('Could not read the file. Please try again or choose another file.');
-      } else {
+      if (err instanceof AiRequestError) {
         this.aiErrorCode.set(toAiErrorCode(err));
+      } else if (err instanceof Error && err.message === READ_ERROR) {
+        this.error.set('Could not read the file. Please try again or choose another file.');
+      } else if (err instanceof Error && err.message.endsWith('has no readable text.')) {
+        this.error.set(err.message);
+      } else {
+        this.aiErrorCode.set('UNKNOWN_ERROR');
       }
     } finally {
       if (generation === this.generation) {
         this.analyzing.set(false);
+        this.inFlight = null;
       }
     }
   }

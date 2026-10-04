@@ -52,12 +52,24 @@
   line-height: 1.5;
 }
 
+.ai-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .ai-status-action {
   min-height: 40px;
 }
 
+.ai-status-caption {
+  margin: 0.5rem 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
 @media (max-width: 480px) {
   .ai-status-action {
-    width: 100%;
+    flex: 1 1 100%;
   }
 }

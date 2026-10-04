@@ -18,7 +18,14 @@ import type {
   AiFinancialContext,
   AiProviderId,
 } from '../../src/app/core/ai/ai-contract';
-import { AI_CREDENTIAL_HEADER, AI_LIMITS, isAiProviderId, maskApiKey } from '../../src/app/core/ai/ai-contract';
+import {
+  AI_CREDENTIAL_HEADER,
+  AI_LIMITS,
+  isAiProviderId,
+  isValidModelId,
+  maskApiKey,
+  unsupportedAttachmentKinds,
+} from '../../src/app/core/ai/ai-contract';
 import { isUsableSecret, openCredential, sealCredential } from './credential-seal';
 import { CHAT_MAX_TOKENS, EXTRACT_TASKS, buildChatSystemPrompt } from './prompts';
 import type { CompletionMessage } from './providers/provider';
@@ -56,6 +63,7 @@ export function readBackendEnv(source: Record<string, string | undefined>): AiBa
     timeoutMs: Number.isFinite(timeout) && timeout >= 1000 ? timeout : 9000,
     models: {
       openai: source['AI_OPENAI_MODEL']?.trim() || 'gpt-4.1-mini',
+      gemini: source['AI_GEMINI_MODEL']?.trim() || 'gemini-flash-latest',
       anthropic: source['AI_ANTHROPIC_MODEL']?.trim() || 'claude-haiku-4-5-20251001',
     },
     allowedOrigins: [...DEFAULT_ALLOWED_ORIGINS, ...extraOrigins],
@@ -97,12 +105,32 @@ export function handleConnect(request: Request, deps: AiBackendDeps): Promise<Re
     }
 
     const secret = requireSecret(deps);
+    let verifyErrorCode: AiErrorCode | undefined;
 
-    await withTimeout(deps, provider, (call) => getProvider(provider).testConnection(apiKey, call));
+    try {
+      await withTimeout(deps, provider, (call) => getProvider(provider).testConnection(apiKey, call));
+    } catch (err) {
+      // A rejected key is never saved. Anything else (timeout, provider down,
+      // rate limit…) means the check couldn't finish: save it as unverified.
+      if (!(err instanceof ProviderFailure) || err.code === 'INVALID_KEY' || err.code === 'PERMISSION_DENIED') {
+        throw err;
+      }
+      verifyErrorCode = err.code;
+    }
 
     const credential = await sealCredential({ provider, apiKey }, secret);
 
-    return { status: 200, body: { success: true, provider, credential, keyHint: maskApiKey(apiKey) } };
+    return {
+      status: 200,
+      body: {
+        success: true,
+        provider,
+        credential,
+        keyHint: maskApiKey(apiKey),
+        verified: verifyErrorCode === undefined,
+        ...(verifyErrorCode ? { verifyErrorCode } : {}),
+      },
+    };
   });
 }
 
@@ -113,6 +141,16 @@ export function handleTest(request: Request, deps: AiBackendDeps): Promise<Respo
     await withTimeout(deps, provider, (call) => getProvider(provider).testConnection(apiKey, call));
 
     return { status: 200, body: { success: true, provider } };
+  });
+}
+
+export function handleModels(request: Request, deps: AiBackendDeps): Promise<Response> {
+  return route('models', request, deps, async (body) => {
+    const { provider, apiKey } = await requireCredential(request, body, deps);
+
+    const models = await withTimeout(deps, provider, (call) => getProvider(provider).listModels(apiKey, call));
+
+    return { status: 200, body: { success: true, provider, models, defaultModel: deps.env.models[provider] } };
   });
 }
 
@@ -127,7 +165,9 @@ export function handleChat(request: Request, deps: AiBackendDeps): Promise<Respo
     const history = parseHistory(body['history']);
     const context = parseContext(body['context']);
     const attachments = parseAttachments(body['attachments']);
+    const model = parseModel(body['model']);
     const { provider, apiKey } = await requireCredential(request, body, deps);
+    requireSupportedAttachments(provider, attachments);
 
     const messages = normalizeTurns([...history, { role: 'user', content: message }]);
 
@@ -143,6 +183,8 @@ export function handleChat(request: Request, deps: AiBackendDeps): Promise<Respo
         { system: buildChatSystemPrompt(context), messages, maxTokens: CHAT_MAX_TOKENS },
         call,
       ),
+      model,
+      request,
     );
 
     return { status: 200, body: { success: true, provider, message: reply } };
@@ -159,7 +201,9 @@ export function handleExtract(request: Request, deps: AiBackendDeps): Promise<Re
     }
 
     const blocks = parseBlocks(body['blocks']);
+    const model = parseModel(body['model']);
     const { provider, apiKey } = await requireCredential(request, body, deps);
+    requireSupportedAttachments(provider, blocks);
 
     const reply = await withTimeout(deps, provider, (call) =>
       getProvider(provider).complete(
@@ -171,6 +215,8 @@ export function handleExtract(request: Request, deps: AiBackendDeps): Promise<Re
         },
         call,
       ),
+      model,
+      request,
     );
 
     return { status: 200, body: { success: true, provider, message: reply } };
@@ -220,14 +266,33 @@ async function route(
   });
 }
 
+const PROVIDER_FAILURE_STATUS: Partial<Record<AiErrorCode, number>> = {
+  INVALID_KEY: 401,
+  PERMISSION_DENIED: 403,
+  QUOTA_EXCEEDED: 402,
+  BILLING_NOT_CONFIGURED: 402,
+  USAGE_LIMIT: 429,
+  RATE_LIMITED: 429,
+  UNSUPPORTED_CAPABILITY: 400,
+  MODEL_UNAVAILABLE: 400,
+  INVALID_REQUEST: 400,
+  TIMEOUT: 504,
+};
+
+/** Rejects files the selected provider can't read, before any provider call. */
+function requireSupportedAttachments(provider: AiProviderId, blocks: AiContentBlock[]): void {
+  if (unsupportedAttachmentKinds(provider, blocks).length > 0) {
+    throw new RequestFailure('UNSUPPORTED_CAPABILITY', 400);
+  }
+}
+
 function toErrorResult(err: unknown): RouteResult {
   if (err instanceof RequestFailure) {
     return { status: err.status, body: { success: false, errorCode: err.code } };
   }
 
   if (err instanceof ProviderFailure) {
-    const status = err.code === 'INVALID_KEY' ? 401 : err.code === 'TIMEOUT' ? 504 : 502;
-    return { status, body: { success: false, errorCode: err.code } };
+    return { status: PROVIDER_FAILURE_STATUS[err.code] ?? 502, body: { success: false, errorCode: err.code } };
   }
 
   return { status: 500, body: { success: false, errorCode: 'SERVER_ERROR' } };
@@ -304,18 +369,38 @@ async function withTimeout<T>(
   deps: AiBackendDeps,
   provider: AiProviderId,
   run: (call: { fetch: typeof fetch; signal: AbortSignal; model: string }) => Promise<T>,
+  model?: string,
+  request?: Request,
 ): Promise<T> {
   const controller = new AbortController();
+  // The app stopped waiting (user tapped Stop): stop the provider call too, where the runtime reports it.
+  const onClientGone = () => controller.abort(new DOMException('Client closed the request', 'AbortError'));
+  if (request?.signal.aborted) onClientGone();
+  request?.signal.addEventListener('abort', onClientGone, { once: true });
   const timer = setTimeout(
     () => controller.abort(new DOMException('Provider request timed out', 'TimeoutError')),
     deps.env.timeoutMs,
   );
 
   try {
-    return await run({ fetch: deps.fetch, signal: controller.signal, model: deps.env.models[provider] });
+    return await run({ fetch: deps.fetch, signal: controller.signal, model: model ?? deps.env.models[provider] });
   } finally {
     clearTimeout(timer);
+    request?.signal.removeEventListener('abort', onClientGone);
   }
+}
+
+/** Optional user-chosen model. Restricted to plain ids so it can't alter a provider URL. */
+function parseModel(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (!isValidModelId(value)) {
+    throw new RequestFailure('INVALID_REQUEST', 400);
+  }
+
+  return value;
 }
 
 function parseHistory(value: unknown): AiChatTurn[] {

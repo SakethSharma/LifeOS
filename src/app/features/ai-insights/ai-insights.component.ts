@@ -14,11 +14,11 @@ import { Router, RouterLink } from "@angular/router";
 import { AiService } from "../../core/services/ai.service";
 import { AiConversationService } from "../../core/services/ai-conversation.service";
 import type { ChatAttachmentInput } from "../../core/ai/ai-chat-session";
-import { AI_LIMITS } from "../../core/ai/ai-contract";
-import type { AiContentBlock } from "../../core/ai/ai-contract";
+import { AI_LIMITS, unsupportedAttachmentKinds } from "../../core/ai/ai-contract";
+import type { AiContentBlock, AiProviderChoice } from "../../core/ai/ai-contract";
 import { describeAiError } from "../../core/ai/ai-errors";
 import type { AiErrorAction } from "../../core/ai/ai-errors";
-import { AI_CONNECT_FRAGMENT, AI_SETUP_ROUTE } from "../../core/ai/ai-provider-guides";
+import { AI_CONNECT_FRAGMENT, AI_SETUP_ROUTE, isCloudProvider, providerShortName } from "../../core/ai/ai-provider-guides";
 import {
   CHAT_ATTACHMENT_ACCEPT,
   CHAT_ATTACHMENT_RULES,
@@ -63,6 +63,7 @@ export class AiInsightsComponent implements OnDestroy {
   private promptInput = viewChild<ElementRef<HTMLTextAreaElement>>("promptInput");
   private fileInput = viewChild<ElementRef<HTMLInputElement>>("fileInput");
   private conversationEnd = viewChild<ElementRef<HTMLElement>>("conversationEnd");
+  private providerSelect = viewChild<ElementRef<HTMLSelectElement>>("providerSelect");
 
   readonly setupRoute = AI_SETUP_ROUTE;
   readonly connectFragment = AI_CONNECT_FRAGMENT;
@@ -73,6 +74,34 @@ export class AiInsightsComponent implements OnDestroy {
 
   isConnected = this.ai.isConnected;
   online = this.ai.online;
+  activeProvider = this.ai.activeProvider;
+  usableProviders = this.ai.usableProviders;
+  hasAlternativeProvider = this.ai.hasAlternativeProvider;
+
+  /** Small line at the top of the chat saying which provider answers. */
+  providerLine = computed(() => {
+    const connection = this.ai.connection();
+
+    if (!connection) return "No AI provider connected";
+
+    const name = providerShortName(connection.provider) + (connection.model ? ` · ${connection.model}` : "");
+    if (connection.status === "failed") return `${name} — key isn't working`;
+    if (connection.status === "not_tested") return `Using ${name} (not tested)`;
+    return `Connected to ${name}`;
+  });
+
+  /** Where the question and the financial summary go, in plain words. */
+  dataNotice = computed(() => {
+    const c = this.ai.connection();
+    if (!c) return "";
+
+    const where = isCloudProvider(c.provider)
+      ? `are sent to ${providerShortName(c.provider)} over the internet`
+      : `stay with Ollama at ${c.baseUrl ?? "your computer"}`;
+    return `Your question and a summary of your LifeOS numbers ${where}. Answers are suggestions, not professional financial advice.`;
+  });
+
+  activeKeyFailed = computed(() => this.ai.connection()?.status === "failed");
   chat = this.conversation.state;
   question = this.conversation.draft;
 
@@ -124,11 +153,27 @@ export class AiInsightsComponent implements OnDestroy {
     this.attachments().forEach((a) => releasePreview(a));
   }
 
+  /** Stop: cancels the reply in progress. The question stays; nothing partial is added. */
+  stopGenerating(): void {
+    if (this.conversation.session.stop()) {
+      setTimeout(() => this.promptInput()?.nativeElement.focus({ preventScroll: true }));
+    }
+  }
+
   async submitPrompt(): Promise<void> {
     if (!this.canSend()) return;
 
     const text = this.question().trim();
     const files: ChatAttachmentInput[] = this.attachments().map((a) => ({ name: a.name, kind: a.kind, block: a.block }));
+    const provider = this.activeProvider();
+
+    // The provider may have been switched after files were attached.
+    if (provider && unsupportedAttachmentKinds(provider, files.map((f) => f.block)).length > 0) {
+      this.attachmentErrors.set([
+        `${this.providerName(provider)} can't read one of the attached files. Remove it or switch provider.`,
+      ]);
+      return;
+    }
 
     this.clearComposer();
 
@@ -178,10 +223,22 @@ export class AiInsightsComponent implements OnDestroy {
 
     if (files.length === 0) return;
 
-    const { accepted, errors } = validateNewAttachments(
+    const { accepted: validated, errors } = validateNewAttachments(
       this.attachments().map((a) => a.size),
       files,
     );
+
+    // Only keep files the selected provider can actually read.
+    const accepted = validated.filter(({ file, kind }) => {
+      const provider = this.activeProvider();
+      if (!provider) return true;
+
+      const blocked = unsupportedAttachmentKinds(provider, [toContentBlock(kind, "", "")]).length > 0;
+      if (blocked) {
+        errors.push(`"${file.name}": ${this.providerName(provider)} can't read this file type. Switch provider or attach a different file.`);
+      }
+      return !blocked;
+    });
 
     this.readingFiles.set(true);
 
@@ -227,10 +284,48 @@ export class AiInsightsComponent implements OnDestroy {
   }
 
   async handleAction(action: AiErrorAction): Promise<void> {
-    if (action === "retry") {
-      await this.sendUnanswered();
-    } else {
-      await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
+    switch (action) {
+      case "retry":
+        await this.sendUnanswered();
+        break;
+      case "billing":
+        // New tab: this page, the conversation and the draft stay exactly as they are.
+        this.ai.openBillingPage();
+        break;
+      case "switch-provider":
+        this.focusProviderPicker();
+        break;
+      default:
+        await this.router.navigate([AI_SETUP_ROUTE], { fragment: AI_CONNECT_FRAGMENT });
+    }
+  }
+
+  providerName(id: AiProviderChoice): string {
+    return providerShortName(id);
+  }
+
+  providerOptionLabel(id: AiProviderChoice): string {
+    const status = this.ai.connections()[id]?.status;
+    return status === "not_tested" ? `${this.providerName(id)} (not tested)` : this.providerName(id);
+  }
+
+  /** Switches the provider used for new requests. Nothing is resent automatically. */
+  onProviderSelected(event: Event): void {
+    const id = (event.target as HTMLSelectElement).value as AiProviderChoice;
+    this.ai.setActiveProvider(id);
+    this.attachmentErrors.set([]);
+  }
+
+  private focusProviderPicker(): void {
+    const select = this.providerSelect()?.nativeElement;
+    if (!select) return;
+
+    select.scrollIntoView({ behavior: "smooth", block: "center" });
+    select.focus({ preventScroll: true });
+    try {
+      select.showPicker();
+    } catch {
+      // Not supported everywhere — focus is enough.
     }
   }
 

@@ -1,15 +1,60 @@
 import { Component, ElementRef, computed, inject, output, signal, viewChild } from '@angular/core';
 import { AiService } from '../../../../core/services/ai.service';
-import { AI_PROVIDERS, getProviderInfo } from '../../../../core/ai/ai-provider-guides';
-import type { AiErrorCode, AiProviderId } from '../../../../core/ai/ai-contract';
-import { describeAiError } from '../../../../core/ai/ai-errors';
-import type { AiErrorView } from '../../../../core/ai/ai-errors';
+import {
+  AI_PROVIDERS,
+  CHATGPT_INFO,
+  OLLAMA_INFO,
+  getProviderInfo,
+  providerLabel,
+} from '../../../../core/ai/ai-provider-guides';
+import type { AiProviderInfo } from '../../../../core/ai/ai-provider-guides';
+import { OLLAMA_PROVIDER, isAiProviderId } from '../../../../core/ai/ai-contract';
+import type { AiErrorCode, AiModelInfo, AiProviderChoice, AiProviderId } from '../../../../core/ai/ai-contract';
+import { OLLAMA_DEFAULT_URL, normalizeOllamaUrl } from '../../../../core/ai/ollama-client';
+import { describeAiError, toAiErrorCode } from '../../../../core/ai/ai-errors';
+import type { AiErrorAction, AiErrorView } from '../../../../core/ai/ai-errors';
+import type { ProviderConnectionView } from '../../../../core/ai/ai-connection-manager';
 import { AiStatusCardComponent } from '../../../../shared/components/ai-status-card/ai-status-card.component';
 
+/** Outcome of the last save/test for one provider, shown under its card. */
+type RowResult =
+  | { kind: 'saved' }
+  | { kind: 'saved-unverified'; code?: AiErrorCode }
+  | { kind: 'tested' }
+  | { kind: 'error'; code: AiErrorCode };
+
+interface ProviderRow {
+  info: AiProviderInfo;
+  connection: ProviderConnectionView | null;
+  isActive: boolean;
+  busy: boolean;
+}
+
+/** A provider's model list, loaded on request. */
+interface ModelListState {
+  loading: boolean;
+  models: AiModelInfo[] | null;
+  defaultModel?: string;
+  errorCode?: AiErrorCode;
+}
+
+interface ActiveOption {
+  id: AiProviderChoice;
+  label: string;
+  statusClass: string;
+  statusLabel: string;
+}
+
+const STATUS_LABELS = {
+  connected: 'Connected',
+  not_tested: 'Not tested',
+  failed: 'Connection failed',
+} as const;
+
 /**
- * Where the user connects their own AI provider. The typed key lives only in
- * this component's memory until "Test Connection"; after a successful check
- * it is cleared, and only a masked hint is ever shown again.
+ * Connect and manage AI providers. Each provider keeps its own key; a typed
+ * key lives only in this component's memory until "Save & Test", is cleared
+ * after saving, and only a masked hint is ever shown again.
  */
 @Component({
   selector: 'app-ai-connection-panel',
@@ -21,84 +66,128 @@ import { AiStatusCardComponent } from '../../../../shared/components/ai-status-c
 export class AiConnectionPanelComponent {
   private ai = inject(AiService);
 
-  readonly providers = AI_PROVIDERS;
-
-  guideRequested = output<void>();
-  providerChange = output<AiProviderId>();
-  disconnected = output<void>();
+  /** "Don't have a key? See how" — with the provider whose guide should open. */
+  guideRequested = output<AiProviderId>();
 
   private keyInputRef = viewChild<ElementRef<HTMLInputElement>>('keyField');
 
-  connection = this.ai.connection;
-  status = this.ai.status;
+  readonly providers = AI_PROVIDERS;
+  readonly ollamaInfo = OLLAMA_INFO;
+  readonly chatGptInfo = CHATGPT_INFO;
+  readonly ollamaDefaultUrl = OLLAMA_DEFAULT_URL;
+  /** The exact origin Ollama must allow (OLLAMA_ORIGINS) when LifeOS is opened from a website. */
+  readonly appOrigin = typeof location === 'undefined' ? '' : location.origin;
+  readonly appIsHttps = typeof location !== 'undefined' && location.protocol === 'https:';
 
-  provider = signal<AiProviderId>(this.ai.connection()?.provider ?? 'openai');
+  activeProvider = this.ai.activeProvider;
+
+  editing = signal<AiProviderId | null>(null);
   keyInput = signal('');
   showKey = signal(false);
-  changingKey = signal(false);
   validationMessage = signal<string | null>(null);
-  justConnected = signal(false);
-  lastErrorCode = signal<AiErrorCode | null>(null);
+  confirmingRemove = signal<AiProviderId | null>(null);
+  results = signal<Partial<Record<AiProviderId, RowResult>>>({});
 
-  providerInfo = computed(() => getProviderInfo(this.provider()));
-  connectedProviderLabel = computed(() => {
-    const c = this.connection();
-    return c ? getProviderInfo(c.provider).label : '';
+  rows = computed<ProviderRow[]>(() => {
+    const connections = this.ai.connections();
+    const active = this.ai.activeProvider();
+    // Read through isBusy so busy changes re-render.
+    return this.providers.map((info) => ({
+      info,
+      connection: connections[info.id] ?? null,
+      isActive: active === info.id,
+      busy: this.ai.isBusy(info.id),
+    }));
   });
 
-  showForm = computed(() => !this.connection() || this.changingKey());
-  testing = computed(() => this.status().state === 'testing');
+  usableRows = computed(() => this.rows().filter((r) => r.connection && r.connection.status !== 'failed'));
 
-  pill = computed(() => {
-    switch (this.status().state) {
-      case 'testing':
-        return { cls: 'testing', text: 'Connecting…' };
-      case 'connected':
-        return { cls: 'on', text: '✓ AI connected' };
-      case 'error':
-        return this.connection() ? { cls: 'issue', text: '⚠ AI connection issue' } : { cls: 'off', text: '● AI not connected' };
-      default:
-        return { cls: 'off', text: '● AI not connected' };
-    }
+  /** Everything that can answer requests, cloud and local, for the "AI Provider" choice. */
+  activeOptions = computed<ActiveOption[]>(() => {
+    const connections = this.ai.connections();
+    return this.ai.usableProviders().map((id) => {
+      const c = connections[id];
+      return {
+        id,
+        label: providerLabel(id) + (c?.model ? ` · ${c.model}` : ''),
+        statusClass: c ? c.status : 'none',
+        statusLabel: c ? STATUS_LABELS[c.status] : 'Not configured',
+      };
+    });
   });
 
-  errorView = computed<AiErrorView | null>(() => {
-    const code = this.lastErrorCode();
+  // ---- Models (per provider) ----
+  modelLists = signal<Partial<Record<AiProviderChoice, ModelListState>>>({});
 
-    if (!code || this.testing()) {
-      return null;
-    }
+  // ---- Ollama ----
+  ollama = computed(() => this.ai.connections()[OLLAMA_PROVIDER] ?? null);
+  ollamaBusy = computed(() => {
+    this.ai.connections();
+    return this.ai.isBusy(OLLAMA_PROVIDER);
+  });
+  ollamaIsActive = computed(() => this.ai.activeProvider() === OLLAMA_PROVIDER);
+  ollamaEditing = signal(false);
+  ollamaUrl = signal(OLLAMA_DEFAULT_URL);
+  ollamaModel = signal('');
+  ollamaModels = signal<AiModelInfo[] | null>(null);
+  ollamaLoading = signal(false);
+  ollamaUrlError = signal<string | null>(null);
+  ollamaResult = signal<RowResult | null>(null);
+  confirmingOllamaRemove = signal(false);
 
+  statusLabel(row: ProviderRow): string {
+    return row.connection ? STATUS_LABELS[row.connection.status] : 'Not configured';
+  }
+
+  statusClass(row: ProviderRow): string {
+    return row.connection ? row.connection.status : 'none';
+  }
+
+  errorView(code: AiErrorCode): AiErrorView {
     const view = describeAiError(code);
 
-    // The panel itself is where keys get fixed, so every action here is "try again".
+    // On this panel the fix for a bad key is right here: update it.
     if (code === 'INVALID_KEY') {
       return {
         ...view,
         title: "We couldn't connect to your AI provider",
         message: 'Please check your API key and try again.',
-        action: 'retry',
-        actionLabel: 'Try Again',
+        action: 'check-key',
+        actionLabel: 'Update Key',
+        extraActions: [],
       };
     }
 
-    return { ...view, action: 'retry', actionLabel: 'Try Again' };
-  });
+    return view;
+  }
 
-  selectProvider(id: AiProviderId): void {
-    if (this.provider() === id) return;
+  verificationNote(row: ProviderRow): string {
+    const code = row.connection?.lastErrorCode;
+    return code ? describeAiError(code).title.toLowerCase() : 'the check didn’t finish';
+  }
 
-    this.provider.set(id);
+  setActive(provider: AiProviderChoice): void {
+    this.ai.setActiveProvider(provider);
+  }
+
+  startEdit(provider: AiProviderId): void {
+    this.editing.set(provider);
+    this.keyInput.set('');
+    this.showKey.set(false);
+    this.validationMessage.set(null);
+    this.confirmingRemove.set(null);
+    this.focusKeyInput();
+  }
+
+  cancelEdit(): void {
+    this.editing.set(null);
     this.keyInput.set('');
     this.validationMessage.set(null);
-    this.lastErrorCode.set(null);
-    this.providerChange.emit(id);
   }
 
   onKeyInput(event: Event): void {
     this.keyInput.set((event.target as HTMLInputElement).value);
     this.validationMessage.set(null);
-    this.justConnected.set(false);
   }
 
   clearKey(): void {
@@ -111,18 +200,8 @@ export class AiConnectionPanelComponent {
     this.showKey.update((v) => !v);
   }
 
-  async testConnection(): Promise<void> {
-    if (this.testing()) return;
-
-    this.justConnected.set(false);
-    this.lastErrorCode.set(null);
-
-    if (!this.showForm()) {
-      const code = await this.ai.testConnection();
-      this.lastErrorCode.set(code);
-      this.justConnected.set(code === null);
-      return;
-    }
+  async saveKey(provider: AiProviderId): Promise<void> {
+    if (this.ai.isBusy(provider)) return;
 
     const key = this.keyInput().trim();
 
@@ -137,49 +216,253 @@ export class AiConnectionPanelComponent {
       return;
     }
 
-    const code = await this.ai.connect(this.provider(), key);
-    this.lastErrorCode.set(code);
+    this.setResult(provider, null);
+    const result = await this.ai.saveKey(provider, key);
 
-    if (code === null) {
-      this.keyInput.set('');
-      this.showKey.set(false);
-      this.changingKey.set(false);
-      this.justConnected.set(true);
-    }
-  }
-
-  startChangeKey(): void {
-    this.changingKey.set(true);
-    this.justConnected.set(false);
-    this.lastErrorCode.set(null);
-    this.provider.set(this.connection()?.provider ?? this.provider());
-    this.focusKeyInput();
-  }
-
-  cancelChangeKey(): void {
-    this.changingKey.set(false);
-    this.keyInput.set('');
-    this.validationMessage.set(null);
-    this.lastErrorCode.set(null);
-  }
-
-  disconnect(): void {
-    this.ai.disconnect();
-    this.changingKey.set(false);
-    this.justConnected.set(false);
-    this.lastErrorCode.set(null);
-    this.keyInput.set('');
-    this.disconnected.emit();
-  }
-
-  /** Called by the page when the user arrives here from "How to connect AI" / "Check API Key". */
-  focusForSetup(openKeyForm: boolean): void {
-    if (openKeyForm && this.connection()) {
-      this.startChangeKey();
+    if (result.errorCode) {
+      this.setResult(provider, { kind: 'error', code: result.errorCode });
       return;
     }
 
-    this.focusKeyInput();
+    // Saved: forget the typed key immediately.
+    this.keyInput.set('');
+    this.showKey.set(false);
+    this.editing.set(null);
+    this.setResult(
+      provider,
+      result.verified
+        ? { kind: 'saved' }
+        : { kind: 'saved-unverified', code: this.ai.connections()[provider]?.lastErrorCode },
+    );
+  }
+
+  async testProvider(provider: AiProviderId): Promise<void> {
+    if (this.ai.isBusy(provider)) return;
+
+    this.setResult(provider, null);
+    const code = await this.ai.testProvider(provider);
+    this.setResult(provider, code ? { kind: 'error', code } : { kind: 'tested' });
+  }
+
+  askRemove(provider: AiProviderId): void {
+    this.confirmingRemove.set(provider);
+  }
+
+  confirmRemove(provider: AiProviderId): void {
+    this.ai.removeProvider(provider);
+    this.confirmingRemove.set(null);
+    this.setResult(provider, null);
+    if (this.editing() === provider) this.cancelEdit();
+  }
+
+  openBilling(provider: AiProviderId): void {
+    this.ai.openBillingPage(provider);
+  }
+
+  onRowAction(provider: AiProviderId, action: AiErrorAction): void {
+    switch (action) {
+      case 'billing':
+        this.openBilling(provider);
+        break;
+      case 'check-key':
+        this.startEdit(provider);
+        break;
+      default:
+        if (this.editing() === provider && this.keyInput().trim()) {
+          void this.saveKey(provider);
+        } else if (this.ai.connections()[provider]) {
+          void this.testProvider(provider);
+        } else {
+          this.startEdit(provider);
+        }
+    }
+  }
+
+  requestGuide(): void {
+    const firstUnconfigured = this.rows().find((r) => !r.connection)?.info.id;
+    const active = this.activeProvider();
+    this.guideRequested.emit(this.editing() ?? firstUnconfigured ?? (isAiProviderId(active) ? active : 'openai'));
+  }
+
+  // ---- Model selection ----
+
+  modelList(provider: AiProviderChoice): ModelListState | undefined {
+    return this.modelLists()[provider];
+  }
+
+  /** Loads (or refreshes) the models a configured provider offers. */
+  async loadModels(provider: AiProviderChoice): Promise<void> {
+    if (this.modelLists()[provider]?.loading) return;
+
+    this.setModelList(provider, { loading: true, models: this.modelLists()[provider]?.models ?? null });
+
+    try {
+      const result = await this.ai.listModels(provider);
+      this.setModelList(provider, { loading: false, models: result.models, defaultModel: result.defaultModel });
+    } catch (err) {
+      this.setModelList(provider, { loading: false, models: null, errorCode: toAiErrorCode(err) });
+    }
+  }
+
+  onModelSelected(provider: AiProviderChoice, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.ai.setModel(provider, value || null);
+  }
+
+  /** True when the saved model is no longer offered by the provider. */
+  savedModelMissing(provider: AiProviderChoice): boolean {
+    const list = this.modelLists()[provider]?.models;
+    const model = this.ai.connections()[provider]?.model;
+    return !!list && !!model && !list.some((m) => m.id === model);
+  }
+
+  // ---- Ollama ----
+
+  startOllamaEdit(): void {
+    const current = this.ollama();
+    this.ollamaEditing.set(true);
+    this.ollamaUrl.set(current?.baseUrl ?? OLLAMA_DEFAULT_URL);
+    this.ollamaModel.set(current?.model ?? '');
+    this.ollamaModels.set(null);
+    this.ollamaUrlError.set(null);
+    this.ollamaResult.set(null);
+    this.confirmingOllamaRemove.set(false);
+    void this.loadOllamaModels();
+  }
+
+  cancelOllamaEdit(): void {
+    this.ollamaEditing.set(false);
+    this.ollamaUrlError.set(null);
+  }
+
+  onOllamaUrlInput(event: Event): void {
+    this.ollamaUrl.set((event.target as HTMLInputElement).value);
+    this.ollamaUrlError.set(null);
+    this.ollamaModels.set(null);
+  }
+
+  onOllamaModelSelected(event: Event): void {
+    this.ollamaModel.set((event.target as HTMLSelectElement).value);
+  }
+
+  /** "Test Connection" in the Ollama form: reaches the server and lists its installed models. */
+  async loadOllamaModels(): Promise<void> {
+    if (this.ollamaLoading()) return;
+
+    if (!this.validOllamaUrl()) return;
+
+    this.ollamaLoading.set(true);
+    this.ollamaResult.set(null);
+
+    try {
+      const models = await this.ai.listOllamaModels(this.ollamaUrl());
+      this.ollamaModels.set(models);
+      if (!models.some((m) => m.id === this.ollamaModel())) {
+        this.ollamaModel.set(models[0]?.id ?? '');
+      }
+    } catch (err) {
+      this.ollamaModels.set(null);
+      this.ollamaResult.set({ kind: 'error', code: toAiErrorCode(err) });
+    } finally {
+      this.ollamaLoading.set(false);
+    }
+  }
+
+  async saveOllama(): Promise<void> {
+    if (this.ollamaBusy() || !this.validOllamaUrl()) return;
+
+    if (!this.ollamaModel()) {
+      this.ollamaUrlError.set('Choose a model first. Use Test Connection to list the models installed in Ollama.');
+      return;
+    }
+
+    this.ollamaResult.set(null);
+    const result = await this.ai.saveOllama(this.ollamaUrl(), this.ollamaModel());
+
+    if (result.errorCode) {
+      this.ollamaResult.set({ kind: 'error', code: result.errorCode });
+      return;
+    }
+
+    this.ollamaEditing.set(false);
+    this.ollamaResult.set(
+      result.verified ? { kind: 'saved' } : { kind: 'saved-unverified', code: this.ollama()?.lastErrorCode },
+    );
+  }
+
+  async testOllama(): Promise<void> {
+    if (this.ollamaBusy()) return;
+    this.ollamaResult.set(null);
+    const code = await this.ai.testProvider(OLLAMA_PROVIDER);
+    this.ollamaResult.set(code ? { kind: 'error', code } : { kind: 'tested' });
+  }
+
+  confirmOllamaRemove(): void {
+    this.ai.removeProvider(OLLAMA_PROVIDER);
+    this.confirmingOllamaRemove.set(false);
+    this.ollamaResult.set(null);
+    this.ollamaEditing.set(false);
+    this.setModelList(OLLAMA_PROVIDER, null);
+  }
+
+  onOllamaAction(action: AiErrorAction): void {
+    if (action === 'retry') {
+      void (this.ollamaEditing() ? this.loadOllamaModels() : this.testOllama());
+    } else {
+      this.startOllamaEdit();
+    }
+  }
+
+  ollamaStatusLabel(): string {
+    const c = this.ollama();
+    if (this.ollamaBusy()) return 'Testing…';
+    return c ? STATUS_LABELS[c.status] : 'Not configured';
+  }
+
+  private validOllamaUrl(): boolean {
+    if (normalizeOllamaUrl(this.ollamaUrl())) return true;
+
+    this.ollamaUrlError.set(
+      'Enter an address like http://localhost:11434. Plain http is only allowed for this device (localhost); use https for any other computer.',
+    );
+    return false;
+  }
+
+  private setModelList(provider: AiProviderChoice, state: ModelListState | null): void {
+    this.modelLists.update((all) => {
+      const next = { ...all };
+      if (state) next[provider] = state;
+      else delete next[provider];
+      return next;
+    });
+  }
+
+  /**
+   * Called by the Info page when the user arrives from "Connect AI" / "Check
+   * API Key": open the key form where it's needed and focus it.
+   */
+  focusForSetup(): void {
+    const active = this.activeProvider();
+    const activeConnection = active ? this.ai.connections()[active] : undefined;
+
+    if (isAiProviderId(active) && activeConnection?.status === 'failed') {
+      this.startEdit(active);
+    } else if (!this.usableRows().length) {
+      this.startEdit(this.rows().find((r) => !r.connection)?.info.id ?? 'openai');
+    }
+  }
+
+  providerName(provider: AiProviderId): string {
+    return getProviderInfo(provider).label;
+  }
+
+  private setResult(provider: AiProviderId, result: RowResult | null): void {
+    this.results.update((all) => {
+      const next = { ...all };
+      if (result) next[provider] = result;
+      else delete next[provider];
+      return next;
+    });
   }
 
   private focusKeyInput(): void {

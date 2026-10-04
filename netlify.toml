@@ -22,6 +22,12 @@ node_bundler = "esbuild"
   force = true
 
 [[redirects]]
+  from = "/api/ai/models"
+  to = "/.netlify/functions/ai-models"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/ai/chat"
   to = "/.netlify/functions/ai-chat"
   status = 200

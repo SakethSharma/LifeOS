@@ -135,6 +135,7 @@
       <div class="ai-loading" role="status" aria-live="polite">
         <span class="ai-spinner" aria-hidden="true"></span>
         Asking AI to explain this result…
+        <button type="button" class="btn btn-secondary btn-sm" (click)="stopExplaining()">■ Stop</button>
       </div>
     } @else if (explanation()) {
       <div class="ai-explanation">
@@ -148,7 +149,12 @@
     }
 
     @if (explainErrorView(); as view) {
-      <app-ai-status-card class="ai-error-card" [view]="view" (action)="onExplainErrorAction($event)" />
+      <app-ai-status-card
+        class="ai-error-card"
+        [view]="view"
+        [canSwitchProvider]="hasAlternativeProvider()"
+        (action)="onExplainErrorAction($event)"
+      />
     }
   </div>
   </app-collapsible-section>

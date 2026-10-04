@@ -5,8 +5,9 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "serve:local": "node --experimental-transform-types --no-warnings --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs scripts/serve-local.mjs",
     "test:calc": "node --experimental-strip-types --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs src/app/features/salary-tax/tests/tax-engine.test.ts",
-    "test:ai": "node --experimental-transform-types --no-warnings --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs --test src/app/core/ai/tests/ai-core.test.ts netlify/tests/ai-backend.test.ts",
+    "test:ai": "node --experimental-transform-types --no-warnings --import ./src/app/features/salary-tax/tests/ts-extension-resolver.mjs --test src/app/core/ai/tests/ai-core.test.ts src/app/core/ai/tests/ai-providers.test.ts src/app/core/ai/tests/ai-cancel.test.ts src/app/features/salary-tax/tests/tax-extraction.test.ts netlify/tests/ai-backend.test.ts scripts/tests/serve-local.test.mjs",
     "typecheck:functions": "tsc -p netlify/tsconfig.json",
     "test": "npm run test:calc && npm run test:ai && npm run typecheck:functions"
   },

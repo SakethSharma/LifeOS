@@ -1,6 +1,6 @@
-import type { AiContentBlock } from '../../../src/app/core/ai/ai-contract';
-import type { AiProviderAdapter, CompletionInput, ProviderCall } from './provider';
-import { ProviderFailure, providerFetch, readJson } from './provider';
+import type { AiContentBlock, AiErrorCode, AiModelInfo } from '../../../src/app/core/ai/ai-contract';
+import type { AiProviderAdapter, CompletionInput, ProviderCall, ProviderErrorInfo } from './provider';
+import { ProviderFailure, classifyCommon, cleanModelList, providerFetch, readJson } from './provider';
 
 const API_BASE = 'https://api.openai.com/v1';
 
@@ -12,7 +12,15 @@ export const openAiProvider: AiProviderAdapter = {
   id: 'openai',
 
   async testConnection(apiKey: string, call: ProviderCall): Promise<void> {
-    await providerFetch(call, `${API_BASE}/models`, { method: 'GET', headers: headers(apiKey) });
+    await providerFetch(call, `${API_BASE}/models`, { method: 'GET', headers: headers(apiKey) }, classifyOpenAiError);
+  },
+
+  async listModels(apiKey: string, call: ProviderCall): Promise<AiModelInfo[]> {
+    const response = await providerFetch(call, `${API_BASE}/models`, { method: 'GET', headers: headers(apiKey) }, classifyOpenAiError);
+    const payload = await readJson<{ data?: { id?: unknown }[] }>(response);
+    const ids = (payload.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === 'string');
+
+    return cleanModelList(ids.filter(isOpenAiChatModel).map((id) => ({ id, label: id })));
   },
 
   async complete(apiKey: string, input: CompletionInput, call: ProviderCall): Promise<string> {
@@ -30,7 +38,7 @@ export const openAiProvider: AiProviderAdapter = {
           })),
         ],
       }),
-    });
+    }, classifyOpenAiError);
 
     const payload = await readJson<ChatCompletionPayload>(response);
     const message = payload.choices?.[0]?.message;
@@ -43,6 +51,31 @@ export const openAiProvider: AiProviderAdapter = {
     return text;
   },
 };
+
+/**
+ * OpenAI error codes (developers.openai.com → Error codes):
+ * credit_balance_exhausted / insufficient_quota → out of credit;
+ * *_spend_limit_exceeded / organization_usage_limit_exceeded → a cap the
+ * account set or was given; rate_limit_exceeded → just slow down.
+ */
+export function classifyOpenAiError(error: ProviderErrorInfo): AiErrorCode {
+  const has = (code: string) => error.markers.includes(code);
+
+  if (has('credit_balance_exhausted') || has('insufficient_quota')) return 'QUOTA_EXCEEDED';
+  if (error.markers.some((m) => m.endsWith('_spend_limit_exceeded') || m === 'organization_usage_limit_exceeded')) {
+    return 'USAGE_LIMIT';
+  }
+  if (has('rate_limit_exceeded')) return 'RATE_LIMITED';
+  if (has('model_not_found')) return 'MODEL_UNAVAILABLE';
+  if (has('invalid_api_key')) return 'INVALID_KEY';
+
+  return classifyCommon(error);
+}
+
+/** /v1/models lists every model (embeddings, audio, images…); keep the chat-completions text models. */
+export function isOpenAiChatModel(id: string): boolean {
+  return /^(gpt-|o\d|chatgpt-)/.test(id) && !/(audio|realtime|transcribe|tts|image|search|embedding|instruct|codex)/.test(id);
+}
 
 function headers(apiKey: string): Record<string, string> {
   return { authorization: `Bearer ${apiKey}` };

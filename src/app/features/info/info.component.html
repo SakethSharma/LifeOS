@@ -139,9 +139,15 @@
                 suggest; it isn't professional financial, tax, or legal advice.
               </p>
               <p>
+                LifeOS works with the <strong>OpenAI API</strong>, the
+                <strong>Google Gemini API</strong>, and the
+                <strong>Anthropic Claude API</strong>, using your own API keys.
+                LifeOS doesn't use a shared key or pay for AI usage. You can
+                connect several providers and switch between them; the selected
+                one answers new questions and reads salary documents.
+              </p>
+              <p>
                 You can attach images and PDFs (such as a payslip) to a question.
-                The same AI connection also powers the salary-document reader in
-                the Income Tax Calculator.
               </p>
             </div>
           </app-collapsible-section>
@@ -152,10 +158,7 @@
           <app-collapsible-section [(expanded)]="connectOpen">
             <h3 collapsible-header class="sub-title">Connect AI to LifeOS</h3>
 
-            <app-ai-connection-panel
-              (guideRequested)="showKeyGuide()"
-              (providerChange)="onProviderChange($event)"
-            />
+            <app-ai-connection-panel (guideRequested)="showKeyGuide($event)" />
           </app-collapsible-section>
         </div>
 
@@ -165,6 +168,21 @@
             <div collapsible-header>
               <h3 class="sub-title">How to Get Your AI API Key</h3>
               <p class="sub-hint">A short step-by-step guide for your provider.</p>
+            </div>
+
+            <div class="guide-tabs" role="tablist" aria-label="Choose a provider guide">
+              @for (p of providers; track p.id) {
+                <button
+                  type="button"
+                  role="tab"
+                  class="guide-tab"
+                  [class.active]="guideProvider() === p.id"
+                  [attr.aria-selected]="guideProvider() === p.id"
+                  (click)="selectGuideProvider(p.id)"
+                >
+                  {{ p.label }}
+                </button>
+              }
             </div>
 
             <app-ai-setup-carousel [provider]="guideProvider()" />
@@ -214,23 +232,35 @@
 
             <dl class="trouble-list">
               <div>
-                <dt>"We couldn't authenticate with your AI provider"</dt>
-                <dd>The key is wrong, was deleted, or was copied incompletely. Create a new key and use Change Key above.</dd>
+                <dt>"We couldn't connect to your AI provider"</dt>
+                <dd>The key is wrong, was deleted, or was copied incompletely. Create a new key on the provider's site and use Update Key above.</dd>
               </div>
               <div>
-                <dt>"No AI credit available"</dt>
-                <dd>Your provider account needs API credit. A ChatGPT or Claude subscription doesn't include API usage — check billing on the provider's API site.</dd>
+                <dt>"AI usage unavailable"</dt>
+                <dd>
+                  Your provider reported a credit, billing, or usage-limit problem. Use Open Usage Credits to review billing on
+                  the provider's site, or switch to another connected provider. ChatGPT, Claude, and Gemini app subscriptions
+                  don't include API usage.
+                </dd>
               </div>
               <div>
-                <dt>"You're offline"</dt>
+                <dt>"Too many requests"</dt>
+                <dd>A short-term rate limit, not a billing problem. Wait a moment and try again, or switch provider.</dd>
+              </div>
+              <div>
+                <dt>"Access not allowed" or "Not supported by this provider"</dt>
+                <dd>The key works but isn't allowed this request (for example the model or your region), or the provider can't read this kind of file. Try another provider.</dd>
+              </div>
+              <div>
+                <dt>"Not tested"</dt>
+                <dd>The key was saved but couldn't be checked at the time (for example the provider was busy). Use Test Connection to check it.</dd>
+              </div>
+              <div>
+                <dt>"You're offline" or "That took too long"</dt>
                 <dd>AI needs internet. Reconnect, then tap Try Again — your question is kept.</dd>
               </div>
               <div>
-                <dt>"Too many requests" or "That took too long"</dt>
-                <dd>Wait a moment and try again. Shorter questions and smaller files are faster.</dd>
-              </div>
-              <div>
-                <dt>"AI isn't available here yet" or "There's an issue connecting to AI"</dt>
+                <dt>"AI backend isn't running" or "AI isn't available here yet"</dt>
                 <dd>The LifeOS AI service isn't reachable from this version of the app. Everything else in LifeOS keeps working.</dd>
               </div>
             </dl>

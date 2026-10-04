@@ -1,13 +1,24 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
-import type { AiChatTurn, AiContentBlock, AiErrorCode, AiExtractTask, AiFinancialContext, AiProviderId } from '../ai/ai-contract';
+import type {
+  AiChatTurn,
+  AiContentBlock,
+  AiErrorCode,
+  AiExtractTask,
+  AiFinancialContext,
+  AiModelInfo,
+  AiProviderChoice,
+  AiProviderId,
+} from '../ai/ai-contract';
 import { AiBackendClient } from '../ai/ai-backend-client';
 import { AI_BACKEND_NATIVE_BASE_URL } from '../ai/ai-backend.config';
 import { AiConnectionStorage } from '../ai/ai-connection-storage';
-import type { StoredAiConnection } from '../ai/ai-connection-storage';
-import { AiRequestError, toAiErrorCode } from '../ai/ai-errors';
+import { AiConnectionManager } from '../ai/ai-connection-manager';
+import type { AiConnectionsState, ModelListResult, ProviderConnectionView, SaveKeyResult } from '../ai/ai-connection-manager';
+import { OllamaClient } from '../ai/ollama-client';
+import { getBillingUrl } from '../ai/ai-provider-guides';
 
-export type AiConnectionState = 'not_configured' | 'testing' | 'connected' | 'error';
+export type AiConnectionState = 'not_configured' | 'testing' | 'connected' | 'not_tested' | 'error';
 
 export interface AiConnectionStatus {
   state: AiConnectionState;
@@ -16,33 +27,64 @@ export interface AiConnectionStatus {
 
 /**
  * The single AI entry point for the whole app — AI Insights and the salary
- * document reader share this one connection. Components never see provider
- * details, endpoints, or credentials; they get text back or an AiRequestError.
+ * document reader share the same connections and the same active provider.
+ * Components never see endpoints or credentials; they get text back or an
+ * AiRequestError.
  */
 @Injectable({ providedIn: 'root' })
 export class AiService {
-  private readonly storage = new AiConnectionStorage(safeLocalStorage());
-  private readonly client = new AiBackendClient({
-    baseUrl: resolveBackendBaseUrl(),
-    fetch: (input, init) => fetch(input, init),
-    isOnline: () => isNavigatorOnline(),
+  private readonly stateSignal = signal<AiConnectionsState>({ active: null, providers: {}, busy: {} });
+
+  private readonly manager = new AiConnectionManager(
+    new AiConnectionStorage(safeLocalStorage()),
+    new AiBackendClient({
+      baseUrl: resolveBackendBaseUrl(),
+      fetch: (input, init) => fetch(input, init),
+      isOnline: () => isNavigatorOnline(),
+    }),
+    (state) => this.stateSignal.set(state),
+    undefined,
+    new OllamaClient({ fetch: (input, init) => fetch(input, init) }),
+  );
+
+  /** Every configured provider (display-safe: masked hint and status only). */
+  readonly connections = computed(() => this.stateSignal().providers);
+  readonly activeProvider = computed(() => this.stateSignal().active);
+  /** The active provider's connection, or null. */
+  readonly connection = computed<ProviderConnectionView | null>(() => {
+    const { active, providers } = this.stateSignal();
+    return active ? (providers[active] ?? null) : null;
+  });
+  /** Configured providers that can be selected (saved and not rejected). */
+  readonly usableProviders = computed(() =>
+    (Object.values(this.stateSignal().providers) as ProviderConnectionView[])
+      .filter((c) => c.status !== 'failed')
+      .map((c) => c.provider),
+  );
+  /** True when the active provider can be used for requests. */
+  readonly isConnected = computed(() => {
+    const c = this.connection();
+    return !!c && c.status !== 'failed';
+  });
+  readonly hasAlternativeProvider = computed(() => this.usableProviders().length > 1);
+
+  /** Status of the active provider, for headers and badges. */
+  readonly status = computed<AiConnectionStatus>(() => {
+    const { active, busy } = this.stateSignal();
+    const c = this.connection();
+
+    if (active && busy[active]) return { state: 'testing' };
+    if (!c) return { state: 'not_configured' };
+    if (c.status === 'failed') return { state: 'error', errorCode: c.lastErrorCode };
+    if (c.status === 'not_tested') return { state: 'not_tested', errorCode: c.lastErrorCode };
+    return { state: 'connected' };
   });
 
-  private readonly connectionSignal = signal<StoredAiConnection | null>(this.storage.load());
-  private readonly statusSignal = signal<AiConnectionStatus>({
-    state: this.connectionSignal() ? 'connected' : 'not_configured',
-  });
-
-  /** Masked, display-safe view of the saved connection. */
-  readonly connection = computed(() => {
-    const c = this.connectionSignal();
-    return c ? { provider: c.provider, keyHint: c.keyHint, connectedAt: c.connectedAt } : null;
-  });
-  readonly isConnected = computed(() => this.connectionSignal() !== null);
-  readonly status = this.statusSignal.asReadonly();
   readonly online = signal(isNavigatorOnline());
 
   constructor() {
+    this.stateSignal.set(this.manager.state);
+
     if (typeof window === 'undefined') return;
 
     const update = () => this.online.set(isNavigatorOnline());
@@ -54,61 +96,56 @@ export class AiService {
     });
   }
 
-  /** Verifies the key with the provider (via the backend) and saves only the sealed credential. */
-  async connect(provider: AiProviderId, apiKey: string): Promise<AiErrorCode | null> {
-    if (!apiKey.trim()) {
-      return 'NOT_CONFIGURED';
-    }
-
-    this.statusSignal.set({ state: 'testing' });
-
-    try {
-      const result = await this.client.connect({ provider, apiKey: apiKey.trim() });
-      const connection: StoredAiConnection = {
-        provider: result.provider,
-        credential: result.credential,
-        keyHint: result.keyHint,
-        connectedAt: new Date().toISOString(),
-      };
-
-      this.storage.save(connection);
-      this.connectionSignal.set(connection);
-      this.statusSignal.set({ state: 'connected' });
-      return null;
-    } catch (err) {
-      const code = toAiErrorCode(err);
-      this.statusSignal.set({ state: 'error', errorCode: code });
-      return code;
-    }
+  isBusy(provider: AiProviderChoice): boolean {
+    return !!this.stateSignal().busy[provider];
   }
 
-  /** Re-checks the saved connection with a real provider call. */
-  async testConnection(): Promise<AiErrorCode | null> {
-    const connection = this.connectionSignal();
-
-    if (!connection) {
-      this.statusSignal.set({ state: 'not_configured' });
-      return 'NOT_CONFIGURED';
-    }
-
-    this.statusSignal.set({ state: 'testing' });
-
-    try {
-      await this.client.test(connection.provider, connection.credential);
-      this.statusSignal.set({ state: 'connected' });
-      return null;
-    } catch (err) {
-      const code = toAiErrorCode(err);
-      this.statusSignal.set({ state: 'error', errorCode: code });
-      return code;
-    }
+  /** Verifies (when possible) and saves a key for one provider. Other providers are untouched. */
+  saveKey(provider: AiProviderId, apiKey: string): Promise<SaveKeyResult> {
+    return this.manager.saveKey(provider, apiKey);
   }
 
-  /** Forgets the connection. Never touches transactions, salary data, or settings. */
-  disconnect(): void {
-    this.storage.clear();
-    this.connectionSignal.set(null);
-    this.statusSignal.set({ state: 'not_configured' });
+  /** Checks (when reachable) and saves the local Ollama server and model. */
+  saveOllama(baseUrl: string, model: string): Promise<SaveKeyResult> {
+    return this.manager.saveOllama(baseUrl, model);
+  }
+
+  /** Models installed on an Ollama server, before or after saving it. */
+  listOllamaModels(baseUrl: string): Promise<AiModelInfo[]> {
+    return this.manager.listOllamaModels(baseUrl);
+  }
+
+  /** Models a configured provider offers. */
+  listModels(provider: AiProviderChoice): Promise<ModelListResult> {
+    return this.manager.listModels(provider);
+  }
+
+  setModel(provider: AiProviderChoice, model: string | null): boolean {
+    return this.manager.setModel(provider, model);
+  }
+
+  /** Re-checks one provider's saved connection with a real call. */
+  testProvider(provider: AiProviderChoice): Promise<AiErrorCode | null> {
+    return this.manager.testProvider(provider);
+  }
+
+  removeProvider(provider: AiProviderChoice): void {
+    this.manager.removeProvider(provider);
+  }
+
+  setActiveProvider(provider: AiProviderChoice): boolean {
+    return this.manager.setActiveProvider(provider);
+  }
+
+  /** Chat with the active provider; resolves with the reply and which provider gave it. */
+  chatWithProvider(
+    history: AiChatTurn[],
+    message: string,
+    context: AiFinancialContext | null,
+    attachments: AiContentBlock[] = [],
+    cancel?: AbortSignal,
+  ): Promise<{ text: string; provider: AiProviderChoice }> {
+    return this.manager.chat(history, message, context, attachments, cancel);
   }
 
   async chat(
@@ -116,45 +153,30 @@ export class AiService {
     message: string,
     context: AiFinancialContext | null,
     attachments: AiContentBlock[] = [],
+    cancel?: AbortSignal,
   ): Promise<string> {
-    const connection = this.requireConnection();
-    const request = { provider: connection.provider, history, message, context, ...(attachments.length ? { attachments } : {}) };
-
-    return this.track(() => this.client.chat(request, connection.credential));
+    return (await this.manager.chat(history, message, context, attachments, cancel)).text;
   }
 
-  async extract(task: AiExtractTask, blocks: AiContentBlock[]): Promise<string> {
-    const connection = this.requireConnection();
-
-    return this.track(() =>
-      this.client.extract({ provider: connection.provider, task, blocks }, connection.credential),
-    );
+  /** `cancel` stops the request (→ AiRequestError CANCELLED); used by "Stop". */
+  extract(task: AiExtractTask, blocks: AiContentBlock[], cancel?: AbortSignal): Promise<string> {
+    return this.manager.extract(task, blocks, cancel);
   }
 
-  private requireConnection(): StoredAiConnection {
-    const connection = this.connectionSignal();
+  /**
+   * Opens the provider's official billing page in a new tab, leaving LifeOS
+   * (and any chat or form state) exactly as it is. The URL comes only from
+   * the fixed provider list.
+   */
+  openBillingPage(provider: AiProviderChoice | null = this.activeProvider()): boolean {
+    const url = provider ? getBillingUrl(provider) : null;
 
-    if (!connection) {
-      throw new AiRequestError('NOT_CONFIGURED');
+    if (!url || typeof window === 'undefined') {
+      return false;
     }
 
-    return connection;
-  }
-
-  /** Surfaces a rejected key on the connection status, so the settings panel reflects it too. */
-  private async track<T>(run: () => Promise<T>): Promise<T> {
-    try {
-      const result = await run();
-      if (this.statusSignal().state === 'error') {
-        this.statusSignal.set({ state: 'connected' });
-      }
-      return result;
-    } catch (err) {
-      if (toAiErrorCode(err) === 'INVALID_KEY') {
-        this.statusSignal.set({ state: 'error', errorCode: 'INVALID_KEY' });
-      }
-      throw err;
-    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return true;
   }
 }
 

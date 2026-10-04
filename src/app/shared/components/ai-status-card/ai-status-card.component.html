@@ -7,8 +7,20 @@
 
     <ng-content></ng-content>
 
-    <button type="button" class="btn btn-sm ai-status-action" (click)="action.emit(view().action)">
-      {{ view().actionLabel }}
-    </button>
+    <div class="ai-status-actions">
+      <button type="button" class="btn btn-sm ai-status-action" (click)="action.emit(view().action)">
+        {{ view().actionLabel }}
+      </button>
+
+      @for (extra of extraActions(); track extra.action) {
+        <button type="button" class="btn btn-sm btn-secondary ai-status-action" (click)="action.emit(extra.action)">
+          {{ extra.label }}
+        </button>
+      }
+    </div>
+
+    @if (view().caption) {
+      <p class="ai-status-caption">{{ view().caption }}</p>
+    }
   </div>
 </div>

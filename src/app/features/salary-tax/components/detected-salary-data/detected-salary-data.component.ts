@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../core/services/settings.service';
 import { formatAmountDisplay, parseAmountInput } from '../../utils/input-format.util';
 import type { ConfirmedExtractedField } from '../../utils/salary-calculation.util';
-import type { DocumentExtractionResult } from '../../models/document-extraction.model';
+import type { DocumentExtractionResult, ExtractedTaxDetails } from '../../models/document-extraction.model';
+import { DEDUCTION_KEYS, DEDUCTION_LABELS } from '../../utils/tax-extraction.util';
 import type { SalaryFieldKey, SalaryManualInput } from '../../models/salary.model';
 
 interface EditableRow {
@@ -15,6 +16,8 @@ interface EditableRow {
   hasConflict: boolean;
   existingValue: number | null;
   useDetected: boolean;
+  /** AI amount that doesn't match the user's text; cleared once the user edits it. */
+  unverified: boolean;
 }
 
 const FIELD_LABELS: Record<SalaryFieldKey, string> = {
@@ -42,7 +45,35 @@ export class DetectedSalaryDataComponent {
   existingManual = input.required<SalaryManualInput>();
 
   confirm = output<ConfirmedExtractedField[]>();
+  /** Emitted just before `confirm` when the user keeps "apply regime & deductions" ticked. */
+  confirmTaxDetails = output<ExtractedTaxDetails>();
   dismiss = output<void>();
+
+  /** Apply the detected regime / year / deductions too (the user can untick). */
+  applyTaxDetails = signal(true);
+
+  /** Detected regime, year, deductions, rent and TDS as display lines. */
+  taxDetailLines = computed(() => {
+    const d = this.result().taxDetails;
+    if (!d) return [];
+
+    const lines: { label: string; value: string }[] = [];
+    if (d.regime) lines.push({ label: 'Tax regime', value: d.regime === 'new' ? 'New Regime' : 'Old Regime' });
+    if (d.financialYear) lines.push({ label: 'Financial year', value: d.financialYear });
+    for (const key of DEDUCTION_KEYS) {
+      const amount = d.deductions[key];
+      if (amount) lines.push({ label: DEDUCTION_LABELS[key], value: `${this.symbol()}${formatAmountDisplay(amount)} / year` });
+    }
+    if (d.rentPaidAnnual) lines.push({ label: 'Rent paid', value: `${this.symbol()}${formatAmountDisplay(d.rentPaidAnnual)} / year` });
+    if (d.tdsAnnual) lines.push({ label: 'TDS already deducted', value: `${this.symbol()}${formatAmountDisplay(d.tdsAnnual)} / year` });
+    return lines;
+  });
+
+  /** True when an AI provider (not the on-device parser) produced these values. */
+  readByAi = computed(() => {
+    const by = this.result().extractedBy;
+    return !!by && by !== 'LifeOS on this device';
+  });
 
   symbol = this.settingsService.currencySymbol;
 
@@ -51,6 +82,8 @@ export class DetectedSalaryDataComponent {
   usableRows = computed(() => this.rows().filter((r) => r.mappedField));
   ignoredRows = computed(() => this.rows().filter((r) => !r.mappedField));
   hasUsableRows = computed(() => this.usableRows().length > 0);
+  /** Amounts the user still has to check (they didn't match what was typed). */
+  uncheckedRows = computed(() => this.usableRows().filter((r) => r.unverified));
 
   fieldLabel = (field?: SalaryFieldKey): string => (field ? FIELD_LABELS[field] : '');
 
@@ -62,7 +95,9 @@ export class DetectedSalaryDataComponent {
       this.rows.set(
         result.fields.map((f, index) => {
           const existingValue = f.mappedField ? manualValueFor(manual, f.mappedField) : null;
-          const frequency: 'monthly' | 'annual' = f.frequency === 'annual' ? 'annual' : 'monthly';
+          // A CTC is quoted per year unless the source says otherwise.
+          const frequency: 'monthly' | 'annual' =
+            f.frequency === 'annual' || (f.frequency === 'unknown' && f.mappedField === 'annualCtc') ? 'annual' : 'monthly';
 
           return {
             id: index,
@@ -73,6 +108,7 @@ export class DetectedSalaryDataComponent {
             hasConflict: hasConflict(f.value, frequency, existingValue),
             existingValue,
             useDetected: true,
+            unverified: !!f.unverified,
           };
         }),
       );
@@ -85,7 +121,7 @@ export class DetectedSalaryDataComponent {
 
   onValueEdit(row: EditableRow, event: Event): void {
     const value = parseAmountInput((event.target as HTMLInputElement).value) ?? 0;
-    this.updateRow(row, { value });
+    this.updateRow(row, { value, unverified: false });
   }
 
   onFrequencyChange(row: EditableRow, event: Event): void {
@@ -102,6 +138,11 @@ export class DetectedSalaryDataComponent {
   }
 
   confirmAll(): void {
+    const details = this.result().taxDetails;
+    if (details && this.applyTaxDetails()) {
+      this.confirmTaxDetails.emit(details);
+    }
+
     const fields: ConfirmedExtractedField[] = this.usableRows()
       .filter((r) => !r.hasConflict || r.useDetected)
       .map((r) => ({

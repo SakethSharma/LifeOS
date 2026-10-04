@@ -3,49 +3,49 @@
     <h3 collapsible-header class="upload-title">Let AI Fill It In For You</h3>
 
     <p class="upload-hint">
-      Optional — upload a salary slip, offer letter, or Form 16, or paste the
-      details as text. LifeOS will show you what it detected before using
-      anything in a calculation.
+      Optional — describe your salary in your own words, paste a salary
+      breakup, or upload a salary slip, offer letter, or Form 16. Nothing is
+      sent until you tap "Let's Calculate Tax?", and you'll review what was
+      detected before it's used. LifeOS's own calculator works out the tax.
     </p>
 
     @if (!aiAvailable()) {
       <p class="ai-status-note">
-        Plain text and CSV/TXT files are read on this device. Images and PDFs
-        need an AI provider — connect one once on the Info page.
+        Without an AI provider, only "Label Amount" text and CSV/TXT files can
+        be read (on this device). Images, PDFs and descriptions like "15 LPA"
+        need an AI provider — connect one on the Info page.
       </p>
-    } @else if (!online()) {
+    } @else if (needsInternet() && !online()) {
       <p class="ai-status-note">
-        You're offline. Pasted text and CSV/TXT files still work; images and
-        PDFs need an internet connection.
+        You're offline. Your AI provider needs internet; "Label Amount" text
+        and CSV/TXT files can still be read on this device.
+      </p>
+    } @else {
+      <p class="ai-status-note">
+        Uses your selected AI provider: <strong>{{ providerDescription() }}</strong>.
+        @if (usingOllama()) {
+          Ollama runs on your computer and can't read PDFs — paste the text instead.
+        }
       </p>
     }
 
     <div class="form-group">
-      <label class="form-label" for="st-paste">Paste your salary details here</label>
+      <label class="form-label" for="st-paste">Your salary details</label>
 
       <textarea
         id="st-paste"
         class="form-control paste-area"
         rows="4"
-        placeholder="e.g. Basic Salary  48000&#10;HRA  24000&#10;Special Allowance  18000"
+        placeholder="e.g. My salary is ₹15 LPA, HRA ₹2 lakhs, 80C investments ₹1.5 lakhs&#10;or: Basic Salary  48000&#10;HRA  24000"
         [ngModel]="pasteText()"
-        (ngModelChange)="pasteText.set($event)"
+        (ngModelChange)="onPasteInput($event)"
         [disabled]="analyzing()"
       ></textarea>
     </div>
 
     <div class="upload-actions">
-      <button
-        type="button"
-        class="btn"
-        [disabled]="!pasteText().trim() || analyzing()"
-        (click)="analyzePaste()"
-      >
-        Analyze Pasted Text
-      </button>
-
       <label class="btn btn-secondary file-btn" [class.disabled]="analyzing()">
-        Upload File
+        {{ fileName() ? "Change File" : "Upload File" }}
         <input
           type="file"
           class="file-input"
@@ -54,17 +54,34 @@
           (change)="onFileSelected($event)"
         />
       </label>
+
+      @if (fileName()) {
+        <span class="file-chip">
+          <span class="file-chip-name">{{ fileName() }}</span>
+          <button type="button" class="file-chip-remove" [attr.aria-label]="'Remove ' + fileName()" [disabled]="analyzing()" (click)="removeFile()">✕</button>
+        </span>
+      }
     </div>
 
-    @if (fileName()) {
-      <p class="file-name">Selected: {{ fileName() }}</p>
-    }
+    <div class="confirm-actions">
+      @if (analyzing()) {
+        <div class="upload-loading" role="status" aria-live="polite">
+          <span class="upload-spinner" aria-hidden="true"></span>
+          Reading your details…
+        </div>
+        <button type="button" class="btn btn-secondary stop-btn" (click)="stop()">
+          <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="2.5" fill="currentColor" /></svg>
+          Stop
+        </button>
+      } @else {
+        <button type="button" class="btn calc-btn" [disabled]="!canStart()" (click)="calculateTax()">
+          Let's Calculate Tax?
+        </button>
+      }
+    </div>
 
-    @if (analyzing()) {
-      <div class="upload-loading" role="status" aria-live="polite">
-        <span class="upload-spinner" aria-hidden="true"></span>
-        Analyzing…
-      </div>
+    @if (stopped()) {
+      <p class="upload-note" role="status">Stopped. Nothing was used — edit your details and try again when you're ready.</p>
     }
 
     @if (error()) {
@@ -72,7 +89,12 @@
     }
 
     @if (aiErrorView(); as view) {
-      <app-ai-status-card class="upload-ai-error" [view]="view" (action)="onAiErrorAction($event)" />
+      <app-ai-status-card
+        class="upload-ai-error"
+        [view]="view"
+        [canSwitchProvider]="hasAlternativeProvider()"
+        (action)="onAiErrorAction($event)"
+      />
     }
   </app-collapsible-section>
 </div>

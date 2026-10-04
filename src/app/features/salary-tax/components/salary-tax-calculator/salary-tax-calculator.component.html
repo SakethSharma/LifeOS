@@ -28,6 +28,7 @@
         <app-detected-salary-data
           [result]="pendingDetection()!"
           [existingManual]="manual()"
+          (confirmTaxDetails)="onConfirmTaxDetails($event)"
           (confirm)="onConfirmDetected($event)"
           (dismiss)="onDismissDetected()"
         />
@@ -75,7 +76,22 @@
         </p>
       </div>
 
+      @if (detectionNotes().length > 0) {
+        <ul class="detection-notes" role="note">
+          @for (n of detectionNotes(); track $index) {
+            <li>{{ n }}</li>
+          }
+        </ul>
+      }
+
       @if (result(); as r) {
+        @if (statedTds(); as tds) {
+          <p class="detection-notes tds-note" role="note">
+            Your details mention TDS of {{ symbol() }}{{ tds.toLocaleString("en-IN") }} for the year. LifeOS doesn't
+            estimate refunds or tax payable after TDS yet — compare it with the estimated tax below.
+          </p>
+        }
+
         <app-salary-summary [result]="r" />
 
         <app-tax-result
@@ -84,6 +100,11 @@
           [taxYearLabel]="taxYearLabel()"
           (compareRequested)="compareRegimes()"
         />
+
+        <p class="estimate-disclaimer">
+          This is an estimate from LifeOS's built-in {{ taxYearLabel() }} rules. Please verify it against the
+          applicable tax rules and your official documents (Form 16, Form 26AS/AIS) before filing.
+        </p>
       }
     </div>
 

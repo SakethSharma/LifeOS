@@ -8,8 +8,28 @@
   } @else {
     <h3 class="detected-title">Information Detected</h3>
 
+    @if (result().extractedBy) {
+      <p class="detected-source">
+        Read by <strong>{{ result().extractedBy }}</strong>.
+        @if (readByAi()) {
+          These are AI-extracted values — nothing is used until you confirm.
+        }
+      </p>
+    }
+
     @if (result().message) {
       <p class="detected-message">{{ result().message }}</p>
+    }
+
+    @if (result().missing?.length) {
+      <div class="detected-missing" role="note">
+        <p>Still needed — please add these above (they weren't assumed):</p>
+        <ul>
+          @for (m of result().missing; track $index) {
+            <li>{{ m }}</li>
+          }
+        </ul>
+      </div>
     }
 
     @if (hasUsableRows()) {
@@ -24,6 +44,9 @@
             <div class="row-label">
               <span class="row-name">{{ fieldLabel(row.mappedField) }}</span>
               <span class="row-raw">"{{ row.rawLabel }}"</span>
+              @if (row.unverified) {
+                <span class="row-check" role="alert">Check: this amount doesn't match what you typed</span>
+              }
             </div>
 
             <div class="row-controls">
@@ -89,11 +112,39 @@
       </details>
     }
 
+    @if (taxDetailLines().length > 0) {
+      <div class="detected-details">
+        <p class="detected-details-title">Also detected</p>
+        <ul class="detected-details-list">
+          @for (line of taxDetailLines(); track line.label) {
+            <li><span>{{ line.label }}</span><span>{{ line.value }}</span></li>
+          }
+        </ul>
+        <label class="detected-apply">
+          <input type="checkbox" [checked]="applyTaxDetails()" (change)="applyTaxDetails.set(!applyTaxDetails())" />
+          Apply the regime, year and deductions above to the calculator
+        </label>
+      </div>
+    }
+
+    @if (!hasUsableRows()) {
+      <p class="detected-hint" role="alert">
+        No salary amount could be used. Enter at least your annual CTC or Basic
+        Salary in the fields above, then tap Calculate Tax.
+      </p>
+    }
+
+    @if (uncheckedRows().length > 0) {
+      <p class="detected-hint" role="alert">
+        Correct (or re-type) each amount marked "Check" to continue.
+      </p>
+    }
+
     <div class="detected-actions">
       <button type="button" class="btn btn-secondary" (click)="dismiss.emit()">Dismiss</button>
 
-      <button type="button" class="btn" [disabled]="!hasUsableRows()" (click)="confirmAll()">
-        Confirm &amp; Use
+      <button type="button" class="btn" [disabled]="!hasUsableRows() || uncheckedRows().length > 0" (click)="confirmAll()">
+        Confirm &amp; Calculate
       </button>
     </div>
   }

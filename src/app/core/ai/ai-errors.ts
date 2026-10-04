@@ -1,7 +1,15 @@
 import type { AiErrorCode } from './ai-contract';
 
-/** What the user can do next. Every error maps to exactly one obvious action. */
-export type AiErrorAction = 'connect' | 'retry' | 'check-key' | 'manual';
+/**
+ * What the user can do next. Every error has one obvious primary action;
+ * billing problems add more (open billing, retry, switch provider).
+ */
+export type AiErrorAction = 'connect' | 'retry' | 'check-key' | 'manual' | 'billing' | 'switch-provider';
+
+export interface AiErrorActionButton {
+  action: AiErrorAction;
+  label: string;
+}
 
 export interface AiErrorView {
   code: AiErrorCode;
@@ -10,11 +18,26 @@ export interface AiErrorView {
   message: string;
   action: AiErrorAction;
   actionLabel: string;
+  /** Further actions shown after the primary one. "switch-provider" is only shown when another provider is ready. */
+  extraActions?: AiErrorActionButton[];
+  /** Small note under the actions. */
+  caption?: string;
 }
 
 type ErrorCopy = Omit<AiErrorView, 'code'>;
 
 const RETRY = { action: 'retry', actionLabel: 'Try Again' } as const;
+const SWITCH: AiErrorActionButton = { action: 'switch-provider', label: 'Switch Provider' };
+
+/** "AI usage unavailable": open billing first, then retry or switch. */
+const BILLING_ACTIONS = {
+  icon: '💳',
+  title: 'AI usage unavailable',
+  action: 'billing',
+  actionLabel: 'Open Usage Credits',
+  extraActions: [{ action: 'retry', label: 'Try Again' }, SWITCH],
+  caption: "Opens your provider's billing page in a new tab",
+} as const;
 
 const ERROR_COPY: Record<AiErrorCode, ErrorCopy> = {
   NOT_CONFIGURED: {
@@ -50,23 +73,53 @@ const ERROR_COPY: Record<AiErrorCode, ErrorCopy> = {
     actionLabel: 'Check API Key',
   },
   QUOTA_EXCEEDED: {
-    icon: '⚠',
-    title: 'No AI credit available',
+    ...BILLING_ACTIONS,
+    extraActions: [...BILLING_ACTIONS.extraActions],
     message:
-      "Your AI provider account doesn't have usable credit right now. Check billing on your provider's website, then try again.",
-    ...RETRY,
+      "Your selected AI provider may have insufficient credits or a billing issue. You can review your provider's billing settings or switch to another connected AI provider.",
+  },
+  BILLING_NOT_CONFIGURED: {
+    ...BILLING_ACTIONS,
+    extraActions: [...BILLING_ACTIONS.extraActions],
+    message:
+      "Billing may not be set up for your selected AI provider. You can review your provider's billing settings or switch to another connected AI provider.",
+  },
+  USAGE_LIMIT: {
+    ...BILLING_ACTIONS,
+    extraActions: [...BILLING_ACTIONS.extraActions],
+    message:
+      "There may be a billing or usage-limit issue with your AI provider. You can review your provider's billing settings, try again later, or switch to another connected AI provider.",
   },
   RATE_LIMITED: {
     icon: '⏱',
     title: 'Too many requests',
-    message: 'Your AI provider has temporarily limited requests. Please try again later.',
+    message: 'Your AI provider is limiting how fast requests can be sent. Wait a moment and try again.',
     ...RETRY,
+    extraActions: [SWITCH],
+  },
+  PERMISSION_DENIED: {
+    icon: '⚠',
+    title: 'Access not allowed',
+    message:
+      "Your API key isn't allowed to make this request — for example, the model or your region may not be enabled for your account. Check the key's permissions on your provider's site.",
+    action: 'check-key',
+    actionLabel: 'Check API Key',
+    extraActions: [SWITCH],
+  },
+  UNSUPPORTED_CAPABILITY: {
+    icon: '⚠',
+    title: 'Not supported by this provider',
+    message:
+      "Your selected AI provider or model can't handle this request (for example, this file type). Try without the attachment, or switch to another provider.",
+    ...RETRY,
+    extraActions: [SWITCH],
   },
   PROVIDER_ERROR: {
     icon: '⚠',
     title: 'AI temporarily unavailable',
     message: 'The AI provider is temporarily unavailable. Please try again later.',
     ...RETRY,
+    extraActions: [SWITCH],
   },
   EMPTY_RESPONSE: {
     icon: '⚠',
@@ -92,6 +145,35 @@ const ERROR_COPY: Record<AiErrorCode, ErrorCopy> = {
     message: "This version of LifeOS isn't linked to the LifeOS AI service. Everything else keeps working normally.",
     ...RETRY,
   },
+  BACKEND_NOT_RUNNING: {
+    icon: '⚠',
+    title: "AI backend isn't running",
+    message: `LifeOS couldn't reach its AI service. If you run LifeOS on this computer, start the local AI server with "npm run serve:local", then try again.`,
+    ...RETRY,
+  },
+  LOCAL_AI_UNREACHABLE: {
+    icon: '⚡',
+    title: "Couldn't reach Ollama",
+    message:
+      "LifeOS couldn't reach your Ollama server. Make sure Ollama is running on this device and the address is right. If LifeOS is opened from a website, Ollama must also allow that site (OLLAMA_ORIGINS) — see the Ollama setup steps on the Info page.",
+    ...RETRY,
+    extraActions: [SWITCH],
+  },
+  MODEL_UNAVAILABLE: {
+    icon: '⚠',
+    title: 'Model not available',
+    message:
+      "The selected model isn't available. For Ollama, install it with \"ollama pull <model>\"; otherwise choose another model on the Info page.",
+    action: 'connect',
+    actionLabel: 'Choose a Model',
+    extraActions: [SWITCH],
+  },
+  CANCELLED: {
+    icon: '■',
+    title: 'Stopped',
+    message: 'You stopped this request.',
+    ...RETRY,
+  },
   UNKNOWN_ERROR: {
     icon: '⚠',
     title: 'Something went wrong',
@@ -114,4 +196,36 @@ export class AiRequestError extends Error {
 
 export function toAiErrorCode(err: unknown): AiErrorCode {
   return err instanceof AiRequestError ? err.code : 'UNKNOWN_ERROR';
+}
+
+export function isCancelled(err: unknown): boolean {
+  return err instanceof AiRequestError && err.code === 'CANCELLED';
+}
+
+/**
+ * One signal that aborts on the request timeout or when the caller cancels
+ * (the user tapped Stop). `cancel` tells the two apart afterwards.
+ */
+export function requestSignal(timeoutMs: number, cancel?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+
+  if (!cancel) return timeout;
+
+  const any = (AbortSignal as unknown as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
+  if (any) return any([timeout, cancel]);
+
+  // Older browsers without AbortSignal.any.
+  const controller = new AbortController();
+  const forward = (source: AbortSignal) => () => controller.abort(source.reason);
+  timeout.addEventListener('abort', forward(timeout), { once: true });
+  cancel.addEventListener('abort', forward(cancel), { once: true });
+  if (cancel.aborted) controller.abort(cancel.reason);
+  return controller.signal;
+}
+
+/** Maps a failed fetch to CANCELLED (user), TIMEOUT, or null (something else). */
+export function abortCode(err: unknown, cancel?: AbortSignal): AiErrorCode | null {
+  if (cancel?.aborted) return 'CANCELLED';
+  const name = (err as { name?: string } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError' ? 'TIMEOUT' : null;
 }

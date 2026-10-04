@@ -1,143 +1,417 @@
-<div class="connect-head">
-  <h3 id="ai-connect-title">AI provider</h3>
-  <span class="connection-pill {{ pill().cls }}" role="status">{{ pill().text }}</span>
-</div>
-
 <p class="connect-intro">
-  LifeOS uses your own AI provider account to answer questions. Connect it once
-  here — AI Insights and the salary document reader both use it.
+  LifeOS uses your own AI: an API key for a cloud provider, or Ollama running
+  on your own computer. You can set up more than one and switch at any time —
+  AI Insights and the salary document reader use the provider selected below.
 </p>
 
-@if (!showForm()) {
-  <div class="saved-connection">
-    <div class="saved-row">
-      <span class="saved-label">Provider</span>
-      <span class="saved-value">{{ connectedProviderLabel() }}</span>
-    </div>
+<!-- AI Provider -->
+<section class="sub" aria-labelledby="ai-active-title">
+  <h4 id="ai-active-title" class="sub-heading">AI Provider</h4>
 
-    <div class="saved-row">
-      <span class="saved-label">API Key</span>
-      <span class="saved-value key-hint">{{ connection()?.keyHint }}</span>
-    </div>
-  </div>
+  @if (activeOptions().length === 0) {
+    <p class="sub-hint">No AI provider set up yet. Add an API key below, or set up Ollama to run AI on your own computer.</p>
+  } @else {
+    <p class="sub-hint">Used for new AI requests.</p>
 
-  <div class="connect-actions">
-    <button type="button" class="btn" [disabled]="testing()" (click)="testConnection()">
-      {{ testing() ? "Testing…" : "Test Connection" }}
-    </button>
-    <button type="button" class="btn btn-secondary" [disabled]="testing()" (click)="startChangeKey()">
-      Change Key
-    </button>
-    <button type="button" class="btn btn-ghost disconnect-btn" [disabled]="testing()" (click)="disconnect()">
-      Disconnect AI
-    </button>
-  </div>
-} @else {
-  <div class="form-field">
-    <span class="field-label" id="ai-provider-label">Provider</span>
-
-    <div class="provider-options" role="radiogroup" aria-labelledby="ai-provider-label">
-      @for (p of providers; track p.id) {
+    <div class="active-options" role="radiogroup" aria-labelledby="ai-active-title">
+      @for (opt of activeOptions(); track opt.id) {
         <button
           type="button"
           role="radio"
-          class="provider-option"
-          [class.selected]="provider() === p.id"
-          [attr.aria-checked]="provider() === p.id"
-          [disabled]="testing()"
-          (click)="selectProvider(p.id)"
+          class="active-option"
+          [class.selected]="opt.id === activeProvider()"
+          [attr.aria-checked]="opt.id === activeProvider()"
+          (click)="setActive(opt.id)"
         >
-          {{ p.label }}
+          <span class="radio-dot" aria-hidden="true"></span>
+          <span class="active-name">{{ opt.label }}</span>
+          <span class="status-chip {{ opt.statusClass }}">{{ opt.statusLabel }}</span>
         </button>
       }
     </div>
-  </div>
+  }
+</section>
 
-  <div class="form-field">
-    <label class="field-label" for="ai-api-key">API Key</label>
+<!-- Configured Providers + Connection Status -->
+<section class="sub" aria-labelledby="ai-configured-title">
+  <h4 id="ai-configured-title" class="sub-heading">Configured Providers</h4>
 
-    <div class="key-input-row">
-      <input
-        #keyField
-        id="ai-api-key"
-        class="form-control key-input"
-        [type]="showKey() ? 'text' : 'password'"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-        [placeholder]="providerInfo().keyPlaceholder"
-        [value]="keyInput()"
-        [disabled]="testing()"
-        (input)="onKeyInput($event)"
-        (keydown.enter)="testConnection()"
-      />
+  <ul class="provider-list">
+    @for (row of rows(); track row.info.id) {
+      <li class="provider-row" [class.in-use]="row.isActive">
+        <div class="row-head">
+          <span class="row-name">{{ row.info.label }}</span>
+          @if (row.isActive) {
+            <span class="in-use-badge">In use</span>
+          }
+          <span class="status-chip {{ statusClass(row) }}" role="status">
+            @if (row.busy) {
+              Testing…
+            } @else {
+              {{ statusLabel(row) }}
+            }
+          </span>
+        </div>
 
-      <button
-        type="button"
-        class="key-icon-btn"
-        [attr.aria-label]="showKey() ? 'Hide API key' : 'Show API key'"
-        [attr.aria-pressed]="showKey()"
-        (click)="toggleShowKey()"
-      >
-        {{ showKey() ? "Hide" : "Show" }}
-      </button>
+        @if (row.connection) {
+          <p class="row-key">API key <code>{{ row.connection.keyHint }}</code></p>
 
-      @if (keyInput()) {
-        <button type="button" class="key-icon-btn" aria-label="Clear API key" (click)="clearKey()">✕</button>
+          @if (row.connection.status !== "failed") {
+            <div class="model-row">
+              @if (modelList(row.info.id)?.models; as models) {
+                <label class="field-label" [for]="'ai-model-' + row.info.id">Model</label>
+                <select [id]="'ai-model-' + row.info.id" class="form-control model-select" (change)="onModelSelected(row.info.id, $event)">
+                  <option value="" [selected]="!row.connection.model">
+                    Default{{ modelList(row.info.id)?.defaultModel ? " (" + modelList(row.info.id)?.defaultModel + ")" : "" }}
+                  </option>
+                  @if (savedModelMissing(row.info.id)) {
+                    <option [value]="row.connection.model" selected>{{ row.connection.model }} (not available)</option>
+                  }
+                  @for (m of models; track m.id) {
+                    <option [value]="m.id" [selected]="m.id === row.connection.model">{{ m.label === m.id ? m.id : m.label + " — " + m.id }}</option>
+                  }
+                </select>
+                @if (savedModelMissing(row.info.id)) {
+                  <p class="field-error" role="alert">Your chosen model isn't offered to this key any more. Pick another model.</p>
+                }
+              } @else {
+                <span class="model-current">Model: <code>{{ row.connection.model || "Default" }}</code></span>
+              }
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="row.busy || modelList(row.info.id)?.loading"
+                (click)="loadModels(row.info.id)"
+              >
+                @if (modelList(row.info.id)?.loading) {
+                  <span class="btn-spinner" aria-hidden="true"></span> Loading…
+                } @else {
+                  {{ modelList(row.info.id)?.models ? "Refresh Models" : "Choose Model" }}
+                }
+              </button>
+            </div>
+            @if (modelList(row.info.id)?.errorCode; as code) {
+              <p class="field-error" role="alert">Couldn't load models: {{ errorView(code).title }}.</p>
+            }
+          }
+        }
+
+        @if (row.connection?.status === "not_tested" && !results()[row.info.id]) {
+          <p class="row-note">
+            Saved, but not verified yet ({{ verificationNote(row) }}).
+            Use Test Connection to check it.
+          </p>
+        }
+
+        @if (editing() === row.info.id) {
+          <div class="key-form">
+            <label class="field-label" [for]="'ai-key-' + row.info.id">{{ row.info.label }} key</label>
+
+            <div class="key-input-row">
+              <input
+                #keyField
+                [id]="'ai-key-' + row.info.id"
+                class="form-control key-input"
+                [type]="showKey() ? 'text' : 'password'"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                [placeholder]="row.info.keyPlaceholder"
+                [value]="keyInput()"
+                [disabled]="row.busy"
+                (input)="onKeyInput($event)"
+                (keydown.enter)="saveKey(row.info.id)"
+              />
+
+              <button
+                type="button"
+                class="key-icon-btn"
+                [attr.aria-label]="showKey() ? 'Hide API key' : 'Show API key'"
+                [attr.aria-pressed]="showKey()"
+                (click)="toggleShowKey()"
+              >
+                {{ showKey() ? "Hide" : "Show" }}
+              </button>
+
+              @if (keyInput()) {
+                <button type="button" class="key-icon-btn" aria-label="Clear API key" (click)="clearKey()">✕</button>
+              }
+            </div>
+
+            @if (validationMessage()) {
+              <p class="field-error" role="alert">{{ validationMessage() }}</p>
+            }
+
+            <div class="row-actions">
+              <button type="button" class="btn" [disabled]="row.busy" (click)="saveKey(row.info.id)">
+                @if (row.busy) {
+                  <span class="btn-spinner" aria-hidden="true"></span>
+                  Testing…
+                } @else {
+                  Save &amp; Test
+                }
+              </button>
+              <button type="button" class="btn btn-secondary" [disabled]="row.busy" (click)="cancelEdit()">Cancel</button>
+            </div>
+          </div>
+        } @else if (confirmingRemove() === row.info.id) {
+          <div class="remove-confirm" role="group" aria-label="Confirm removing this key">
+            <span>Remove the {{ row.info.label }} key from this device? Your other providers and data are kept.</span>
+            <div class="row-actions">
+              <button type="button" class="btn btn-danger btn-sm" (click)="confirmRemove(row.info.id)">Remove Key</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="confirmingRemove.set(null)">Cancel</button>
+            </div>
+          </div>
+        } @else {
+          <div class="row-actions">
+            @if (row.connection) {
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="row.busy" (click)="testProvider(row.info.id)">
+                Test Connection
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" [disabled]="row.busy" (click)="startEdit(row.info.id)">
+                Update Key
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm remove-btn" [disabled]="row.busy" (click)="askRemove(row.info.id)">
+                Remove
+              </button>
+            } @else {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="startEdit(row.info.id)">Add API Key</button>
+            }
+          </div>
+        }
+
+        @switch (results()[row.info.id]?.kind) {
+          @case ("saved") {
+            <p class="row-success" role="status">✓ Connected — {{ row.info.shortName }} is ready to use.</p>
+          }
+          @case ("tested") {
+            <p class="row-success" role="status">✓ Connection works.</p>
+          }
+          @case ("saved-unverified") {
+            <p class="row-note" role="status">
+              Saved, but LifeOS couldn't verify the key right now. It's marked "Not tested" — try Test Connection later.
+            </p>
+          }
+          @case ("error") {
+            @if (results()[row.info.id]; as r) {
+              @if (r.kind === "error") {
+                <app-ai-status-card class="row-error" [view]="errorView(r.code)" (action)="onRowAction(row.info.id, $event)" />
+              }
+            }
+          }
+        }
+      </li>
+    }
+  </ul>
+</section>
+
+<!-- Ollama (local AI) -->
+<section class="sub" aria-labelledby="ai-ollama-title">
+  <h4 id="ai-ollama-title" class="sub-heading">Ollama — AI on your own computer</h4>
+  <p class="sub-hint">
+    No API key and no per-request charges. Your questions and financial summary
+    go only to the Ollama server you enter here.
+  </p>
+
+  <div class="provider-row" [class.in-use]="ollamaIsActive()">
+    <div class="row-head">
+      <span class="row-name">{{ ollamaInfo.label }}</span>
+      @if (ollamaIsActive()) {
+        <span class="in-use-badge">In use</span>
       }
+      <span class="status-chip {{ ollama()?.status ?? 'none' }}" role="status">{{ ollamaStatusLabel() }}</span>
     </div>
 
-    @if (validationMessage()) {
-      <p class="field-error" role="alert">{{ validationMessage() }}</p>
-    }
-  </div>
-
-  <div class="connect-actions">
-    <button type="button" class="btn btn-lg test-btn" [disabled]="testing()" (click)="testConnection()">
-      @if (testing()) {
-        <span class="btn-spinner" aria-hidden="true"></span>
-        Testing…
-      } @else {
-        Test Connection
+    @if (ollama(); as o) {
+      <p class="row-key">Server <code>{{ o.baseUrl }}</code> · Model <code>{{ o.model }}</code></p>
+      @if (o.status === "not_tested" && !ollamaResult()) {
+        <p class="row-note">Saved, but LifeOS couldn't reach Ollama when it last checked. Start Ollama, then use Test Connection.</p>
       }
-    </button>
+    }
 
-    @if (changingKey()) {
-      <button type="button" class="btn btn-lg btn-secondary" [disabled]="testing()" (click)="cancelChangeKey()">
-        Cancel
-      </button>
+    @if (ollamaEditing()) {
+      <div class="key-form">
+        <label class="field-label" for="ollama-url">Ollama server address</label>
+        <div class="key-input-row">
+          <input
+            id="ollama-url"
+            class="form-control key-input"
+            type="url"
+            inputmode="url"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            [placeholder]="ollamaDefaultUrl"
+            [value]="ollamaUrl()"
+            [disabled]="ollamaBusy()"
+            (input)="onOllamaUrlInput($event)"
+            (keydown.enter)="loadOllamaModels()"
+          />
+        </div>
+
+        <div class="row-actions">
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="ollamaLoading() || ollamaBusy()" (click)="loadOllamaModels()">
+            @if (ollamaLoading()) {
+              <span class="btn-spinner" aria-hidden="true"></span> Testing…
+            } @else {
+              Test Connection
+            }
+          </button>
+        </div>
+
+        @if (ollamaModels(); as models) {
+          @if (models.length === 0) {
+            <p class="row-note">Ollama is running but has no models yet. Run <code>ollama pull llama3.2</code>, then Test Connection again.</p>
+          } @else {
+            <label class="field-label" for="ollama-model">Model ({{ models.length }} installed)</label>
+            <select id="ollama-model" class="form-control model-select" (change)="onOllamaModelSelected($event)">
+              @for (m of models; track m.id) {
+                <option [value]="m.id" [selected]="m.id === ollamaModel()">{{ m.id }}</option>
+              }
+            </select>
+          }
+        }
+
+        @if (ollamaUrlError()) {
+          <p class="field-error" role="alert">{{ ollamaUrlError() }}</p>
+        }
+
+        <div class="row-actions">
+          <button type="button" class="btn" [disabled]="ollamaBusy() || !ollamaModel()" (click)="saveOllama()">
+            @if (ollamaBusy()) {
+              <span class="btn-spinner" aria-hidden="true"></span> Saving…
+            } @else {
+              Save Settings
+            }
+          </button>
+          <button type="button" class="btn btn-secondary" [disabled]="ollamaBusy()" (click)="cancelOllamaEdit()">Cancel</button>
+        </div>
+      </div>
+    } @else if (confirmingOllamaRemove()) {
+      <div class="remove-confirm" role="group" aria-label="Confirm clearing Ollama settings">
+        <span>Clear the Ollama settings from LifeOS? Ollama itself, its models, and your data are not affected.</span>
+        <div class="row-actions">
+          <button type="button" class="btn btn-danger btn-sm" (click)="confirmOllamaRemove()">Clear Configuration</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="confirmingOllamaRemove.set(false)">Cancel</button>
+        </div>
+      </div>
+    } @else {
+      <div class="row-actions">
+        @if (ollama()) {
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="ollamaBusy()" (click)="testOllama()">Test Connection</button>
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="ollamaBusy()" (click)="startOllamaEdit()">Change Model or Address</button>
+          <button type="button" class="btn btn-ghost btn-sm remove-btn" [disabled]="ollamaBusy()" (click)="confirmingOllamaRemove.set(true)">
+            Clear
+          </button>
+        } @else {
+          <button type="button" class="btn btn-secondary btn-sm" (click)="startOllamaEdit()">Set Up Ollama</button>
+        }
+      </div>
+    }
+
+    @switch (ollamaResult()?.kind) {
+      @case ("saved") {
+        <p class="row-success" role="status">✓ Connected — Ollama is ready to use.</p>
+      }
+      @case ("tested") {
+        <p class="row-success" role="status">✓ Ollama answered and the model is installed.</p>
+      }
+      @case ("saved-unverified") {
+        <p class="row-note" role="status">Saved, but LifeOS couldn't reach Ollama right now. It's marked "Not tested".</p>
+      }
+      @case ("error") {
+        @if (ollamaResult(); as r) {
+          @if (r.kind === "error") {
+            <app-ai-status-card class="row-error" [view]="errorView(r.code)" (action)="onOllamaAction($event)" />
+          }
+        }
+      }
     }
   </div>
-}
 
-<button type="button" class="link-btn" (click)="guideRequested.emit()">
-  Don't have a key? See how ↓
-</button>
+  <details class="ollama-guide">
+    <summary>How to set up Ollama</summary>
+    <ol class="ollama-steps">
+      <li>Install Ollama from <a [href]="ollamaInfo.downloadUrl" target="_blank" rel="noopener noreferrer">ollama.com/download</a>.</li>
+      <li>Start Ollama (open the app, or run <code>ollama serve</code>).</li>
+      <li>Download a model, for example: <code>ollama pull llama3.2</code></li>
+      <li>Check it's installed: <code>ollama list</code></li>
+      <li>Here, tap <strong>Set Up Ollama</strong>, keep <code>{{ ollamaDefaultUrl }}</code>, tap Test Connection, choose the model and Save.</li>
+    </ol>
+    @if (appIsHttps) {
+      <p class="sub-hint">
+        LifeOS is open from <code>{{ appOrigin }}</code>, so Ollama must allow exactly that site. Set
+        <code>OLLAMA_ORIGINS={{ appOrigin }}</code> as an environment variable and restart Ollama. Don't use <code>*</code> —
+        that lets every website use your Ollama. Your browser may also ask permission for this site to reach apps on your device;
+        allow it. Safari blocks secure sites from reaching <code>http://localhost</code>; use Chrome, Edge or Firefox, or run
+        LifeOS locally (<code>npm run serve:local</code>).
+      </p>
+    } @else {
+      <p class="sub-hint">
+        Ollama allows <code>localhost</code> pages by default. If Test Connection fails while Ollama is running, set
+        <code>OLLAMA_ORIGINS={{ appOrigin }}</code> and restart Ollama.
+      </p>
+    }
+    <p class="sub-hint">
+      "localhost" always means the device LifeOS is open on. On a phone it means the phone itself, so Ollama on your
+      computer isn't reachable from the phone app. Image attachments need a vision model (for example <code>llama3.2-vision</code>);
+      Ollama can't read PDFs.
+    </p>
+  </details>
+</section>
 
-@if (testing()) {
-  <p class="testing-note" role="status" aria-live="polite">
-    Checking your key with {{ providerInfo().company }}…
-  </p>
-}
-
-@if (justConnected() && status().state === "connected") {
-  <div class="success-box" role="status">
-    <p class="success-title">✓ AI connected successfully</p>
-    <p>You can now use AI Insights.</p>
+<!-- ChatGPT (information only) -->
+<section class="sub" aria-labelledby="ai-chatgpt-title">
+  <h4 id="ai-chatgpt-title" class="sub-heading">ChatGPT</h4>
+  <div class="provider-row chatgpt-card">
+    <div class="row-head">
+      <span class="row-name">{{ chatGptInfo.label }}</span>
+      <span class="status-chip none">Not available in LifeOS</span>
+    </div>
+    <p class="row-note">
+      ChatGPT is OpenAI's chat app. Its subscriptions (Go, Plus, Pro) don't include API access, and OpenAI doesn't offer a
+      way for apps like LifeOS to use a ChatGPT subscription. ("Sign in with ChatGPT" is limited to a few approved partner apps.)
+      To use OpenAI models here, add an <strong>OpenAI API</strong> key above — it's billed separately from ChatGPT.
+    </p>
+    <p class="row-note">LifeOS will never ask for your ChatGPT password, cookies or session tokens.</p>
+    <div class="row-actions">
+      <a class="btn btn-secondary btn-sm" [href]="chatGptInfo.siteUrl" target="_blank" rel="noopener noreferrer">Open ChatGPT ↗</a>
+    </div>
   </div>
-}
+</section>
 
-@if (errorView(); as view) {
-  <app-ai-status-card class="panel-error" [view]="view" (action)="testConnection()" />
-}
+<!-- API Key Setup -->
+<section class="sub" aria-labelledby="ai-setup-title">
+  <h4 id="ai-setup-title" class="sub-heading">API Key Setup</h4>
+  <p class="sub-hint">Each provider has a short step-by-step guide.</p>
+  <button type="button" class="link-btn" (click)="requestGuide()">Don't have a key? See how ↓</button>
+</section>
+
+<!-- Usage and Billing Help -->
+<section class="sub" aria-labelledby="ai-billing-title">
+  <h4 id="ai-billing-title" class="sub-heading">Usage and Billing Help</h4>
+  <p class="sub-hint">
+    AI usage is provided through your selected AI provider. Usage limits and
+    charges, if any, are controlled by that provider and your account. ChatGPT,
+    Claude, and Gemini app subscriptions don't include API usage.
+  </p>
+
+  <ul class="billing-list">
+    @for (p of providers; track p.id) {
+      <li class="billing-row">
+        <span class="billing-name">{{ p.label }}</span>
+        <button type="button" class="btn btn-secondary btn-sm" (click)="openBilling(p.id)">Open Usage Credits ↗</button>
+      </li>
+    }
+  </ul>
+  <p class="caption">Opens your provider's billing page in a new tab.</p>
+</section>
 
 <p class="fine-print">
-  AI usage is provided through your selected AI provider. Usage limits and
-  charges, if any, are controlled by that provider and your account.
-</p>
-
-<p class="fine-print">
-  Your key is checked with the provider, then encrypted by the LifeOS AI
-  service. This device keeps only the encrypted version and shows just the
-  last four characters. Disconnect any time to remove it.
+  Each key is checked with its provider, then encrypted by the LifeOS AI
+  service. This device keeps only the encrypted versions and shows just the
+  last four characters. Remove a key any time. Cloud providers receive the
+  question and a summary of your LifeOS numbers you send them; Ollama keeps
+  them on the computer it runs on. AI answers are suggestions, not
+  professional financial advice. Cloud AI needs an internet connection.
 </p>

@@ -25,6 +25,54 @@
   color: var(--text-primary);
 }
 
+/* ---- Active provider (small, unobtrusive) ---- */
+
+.provider-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.5rem;
+  padding: 0.25rem 0 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
+.provider-text {
+  white-space: nowrap;
+}
+
+.provider-warn {
+  color: var(--warning);
+}
+
+.provider-select {
+  max-width: 60%;
+  min-height: 32px;
+  padding: 0.125rem 1.5rem 0.125rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.provider-select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.provider-manage {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
 /* ---- Empty state (new chat) ---- */
 
 .intro {
@@ -214,6 +262,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.msg-provider {
+  display: block;
+  margin-top: 0.375rem;
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+}
+
+.notice {
+  align-self: center;
+  max-width: 90%;
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 .thinking .msg-body {
@@ -479,6 +545,16 @@
   background: var(--primary-hover);
 }
 
+.stop-btn {
+  // Same size and place as Send, so the composer doesn't jump.
+  background: var(--text-primary);
+  color: var(--surface-1);
+}
+
+.stop-btn:hover {
+  opacity: 0.85;
+}
+
 .send-spinner {
   width: 18px;
   height: 18px;
@@ -550,4 +626,13 @@
   .composer {
     padding-bottom: 0.25rem;
   }
+}
+
+.intro .data-note {
+  margin: 0.75rem auto 0;
+  max-width: 32rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted, var(--text-secondary));
+  overflow-wrap: anywhere;
 }

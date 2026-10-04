@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { AI_CREDENTIAL_HEADER } from '../../src/app/core/ai/ai-contract';
 import { openCredential, sealCredential } from '../ai/credential-seal';
 import type { AiBackendDeps, SafeLogFields } from '../ai/handlers';
-import { handleChat, handleConnect, handleExtract, handleTest, normalizeTurns, readBackendEnv } from '../ai/handlers';
+import { handleChat, handleConnect, handleExtract, handleModels, handleTest, normalizeTurns, readBackendEnv } from '../ai/handlers';
 
 const SECRET = 'test-secret-that-is-long-enough-0123456789';
 const API_KEY = 'sk-proj-THISISASECRETKEYVALUE9876';
@@ -102,7 +102,10 @@ test('connect: empty key, bad provider, bad JSON and wrong method are rejected b
   const { deps, providerCalls } = setup(() => json(200, {}));
 
   assert.equal((await read(await handleConnect(post({ provider: 'openai', apiKey: '  ' }), deps))).body['errorCode'], 'NOT_CONFIGURED');
-  assert.equal((await read(await handleConnect(post({ provider: 'gemini', apiKey: API_KEY }), deps))).body['errorCode'], 'INVALID_REQUEST');
+  for (const unsupported of ['chatgpt', 'grok', 'OPENAI', '', null]) {
+    const res = await read(await handleConnect(post({ provider: unsupported, apiKey: API_KEY }), deps));
+    assert.equal(res.body['errorCode'], 'INVALID_REQUEST', `provider ${String(unsupported)} is rejected`);
+  }
   assert.equal((await read(await handleConnect(post('{broken'), deps))).body['errorCode'], 'INVALID_REQUEST');
 
   const get = await handleConnect(new Request('https://lifeos.example/api/ai/connect', { method: 'GET' }), deps);
@@ -191,9 +194,8 @@ test('chat: provider failures map to friendly codes', async () => {
   const cases: [Response, string][] = [
     [json(500, { error: 'internal' }), 'PROVIDER_ERROR'],
     [json(529, { error: 'overloaded' }), 'PROVIDER_ERROR'],
-    [json(429, { error: { type: 'rate_limit_error' } }), 'RATE_LIMITED'],
+    [json(429, { error: { code: 'rate_limit_exceeded' } }), 'RATE_LIMITED'],
     [json(429, { error: { code: 'insufficient_quota' } }), 'QUOTA_EXCEEDED'],
-    [json(400, { error: { message: 'Your credit balance is too low' } }), 'QUOTA_EXCEEDED'],
     [json(401, {}), 'INVALID_KEY'],
     [openAiReply(''), 'EMPTY_RESPONSE'],
     [new Response('not json', { status: 200 }), 'EMPTY_RESPONSE'],
@@ -396,4 +398,317 @@ test('chat: too many or unsupported attachments are rejected before calling the 
   }
 
   assert.equal(providerCalls.length, 0);
+});
+
+// ---- Google Gemini ---------------------------------------------------------------------
+
+import { classifyGeminiError } from '../ai/providers/gemini.provider';
+import { classifyOpenAiError } from '../ai/providers/openai.provider';
+import { classifyAnthropicError } from '../ai/providers/anthropic.provider';
+import { parseProviderError } from '../ai/providers/provider';
+
+const GEMINI_KEY = 'AIzaSyFAKE-gemini-test-key-000000000';
+
+async function geminiCredential(): Promise<Record<string, string>> {
+  return { [AI_CREDENTIAL_HEADER]: await sealCredential({ provider: 'gemini', apiKey: GEMINI_KEY }, SECRET) };
+}
+
+test('gemini: connect lists models with the key in the x-goog-api-key header — never in the URL', async () => {
+  const { deps, providerCalls } = setup(() => json(200, { models: [] }));
+
+  const res = await read(await handleConnect(post({ provider: 'gemini', apiKey: GEMINI_KEY }), deps));
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body['verified'], true);
+  assert.equal(res.body['keyHint'], 'AIza••••••••0000');
+  assert.ok(!res.text.includes(GEMINI_KEY));
+
+  const call = providerCalls[0];
+  assert.match(call.url, /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\?pageSize=1$/);
+  assert.ok(!call.url.includes(GEMINI_KEY) && !call.url.includes('key='), 'key is not in the URL');
+  assert.equal((call.init.headers as Record<string, string>)['x-goog-api-key'], GEMINI_KEY);
+});
+
+test('gemini: chat uses generateContent with systemInstruction, user/model roles and inline files', async () => {
+  const { deps, providerCalls } = setup(() =>
+    json(200, {
+      candidates: [{ content: { parts: [{ text: 'internal reasoning', thought: true }, { text: 'Food is your top category.' }] } }],
+    }),
+  );
+
+  const res = await read(
+    await handleChat(
+      post(
+        {
+          provider: 'gemini',
+          history: [
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', content: 'Hello!' },
+          ],
+          message: 'Where did I spend the most?',
+          context: { currentMonth: { expenses: 35000 } },
+          attachments: [{ type: 'document', mediaType: 'application/pdf', base64Data: 'JVBERi0x' }],
+        },
+        await geminiCredential(),
+      ),
+      deps,
+    ),
+  );
+
+  assert.deepEqual(res.body, { success: true, provider: 'gemini', message: 'Food is your top category.' }, 'thought parts are not shown');
+
+  const call = providerCalls[0];
+  assert.equal(call.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent');
+  assert.equal((call.init.headers as Record<string, string>)['x-goog-api-key'], GEMINI_KEY);
+
+  const body = JSON.parse(String(call.init.body));
+  assert.ok(body.systemInstruction.parts[0].text.includes('Never calculate income tax'), 'server-owned rules');
+  assert.ok(body.systemInstruction.parts[0].text.includes('"expenses":35000'));
+  assert.deepEqual(body.contents.map((c: { role: string }) => c.role), ['user', 'model', 'user']);
+  assert.deepEqual(body.contents[2].parts[0], { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x' } });
+  assert.equal(body.contents[2].parts[1].text, 'Where did I spend the most?');
+  assert.ok(body.generationConfig.maxOutputTokens >= 4096, 'room for thinking tokens plus the answer');
+  assert.ok(!String(call.init.body).includes(GEMINI_KEY));
+});
+
+test('gemini: a blocked or empty answer is EMPTY_RESPONSE, never a made-up reply', async () => {
+  for (const payload of [{ promptFeedback: { blockReason: 'SAFETY' } }, { candidates: [] }, { candidates: [{ content: { parts: [{ text: 'x', thought: true }] } }] }]) {
+    const { deps } = setup(() => json(200, payload));
+    const res = await read(await handleChat(post({ provider: 'gemini', message: 'Hi' }, await geminiCredential()), deps));
+    assert.equal(res.body['errorCode'], 'EMPTY_RESPONSE');
+  }
+});
+
+test('gemini: AI_GEMINI_MODEL overrides the default model', async () => {
+  const { deps, providerCalls } = setup(() => json(200, { candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), {
+    AI_GEMINI_MODEL: 'models/gemini-3.5-flash',
+  });
+  await handleChat(post({ provider: 'gemini', message: 'Hi' }, await geminiCredential()), deps);
+  assert.match(providerCalls[0].url, /\/models\/gemini-3\.5-flash:generateContent$/);
+});
+
+// ---- Provider-specific error classification -------------------------------------------
+
+const err = (status: number, error: unknown) => parseProviderError(status, JSON.stringify({ error }));
+
+test('errors: OpenAI — out of credit, spend caps and rate limits are told apart', () => {
+  assert.equal(classifyOpenAiError(err(429, { code: 'insufficient_quota' })), 'QUOTA_EXCEEDED');
+  assert.equal(classifyOpenAiError(err(429, { code: 'credit_balance_exhausted' })), 'QUOTA_EXCEEDED');
+  assert.equal(classifyOpenAiError(err(429, { code: 'organization_spend_limit_exceeded' })), 'USAGE_LIMIT');
+  assert.equal(classifyOpenAiError(err(429, { code: 'project_spend_limit_exceeded' })), 'USAGE_LIMIT');
+  assert.equal(classifyOpenAiError(err(429, { code: 'organization_usage_limit_exceeded' })), 'USAGE_LIMIT');
+  assert.equal(classifyOpenAiError(err(429, { code: 'rate_limit_exceeded' })), 'RATE_LIMITED');
+  assert.equal(classifyOpenAiError(err(429, {})), 'RATE_LIMITED', 'a bare 429 is a rate limit, not billing');
+  assert.equal(classifyOpenAiError(err(401, { code: 'invalid_api_key' })), 'INVALID_KEY');
+  assert.equal(classifyOpenAiError(err(403, { message: 'unsupported country' })), 'PERMISSION_DENIED');
+  assert.equal(classifyOpenAiError(err(404, { code: 'model_not_found' })), 'MODEL_UNAVAILABLE');
+  assert.equal(classifyOpenAiError(err(500, {})), 'PROVIDER_ERROR');
+});
+
+test('errors: Anthropic — billing_error, spend limits and rate limits are told apart', () => {
+  assert.equal(classifyAnthropicError(err(402, { type: 'billing_error' })), 'QUOTA_EXCEEDED');
+  assert.equal(classifyAnthropicError(err(400, { type: 'invalid_request_error', message: 'Your credit balance is too low' })), 'QUOTA_EXCEEDED');
+  assert.equal(classifyAnthropicError(err(400, { type: 'invalid_request_error', message: 'You have reached your workspace spend limit' })), 'USAGE_LIMIT');
+  assert.equal(classifyAnthropicError(err(429, { type: 'rate_limit_error', message: 'monthly spend cap reached' })), 'USAGE_LIMIT');
+  assert.equal(classifyAnthropicError(err(429, { type: 'rate_limit_error', message: 'Number of requests has exceeded your rate limit' })), 'RATE_LIMITED');
+  assert.equal(classifyAnthropicError(err(400, { type: 'invalid_request_error', message: 'max_tokens too large' })), 'INVALID_REQUEST');
+  assert.equal(classifyAnthropicError(err(401, { type: 'authentication_error' })), 'INVALID_KEY');
+  assert.equal(classifyAnthropicError(err(403, { type: 'permission_error' })), 'PERMISSION_DENIED');
+  assert.equal(classifyAnthropicError(err(404, { type: 'not_found_error' })), 'MODEL_UNAVAILABLE');
+  assert.equal(classifyAnthropicError(err(529, { type: 'overloaded_error' })), 'PROVIDER_ERROR');
+});
+
+test('errors: Gemini — payment required, billing not set up, bad key and rate limits are told apart', () => {
+  assert.equal(classifyGeminiError(err(402, { status: 'payment_required' })), 'QUOTA_EXCEEDED');
+  assert.equal(classifyGeminiError(err(400, { status: 'FAILED_PRECONDITION', message: 'Please enable billing on your project' })), 'BILLING_NOT_CONFIGURED');
+  assert.equal(
+    classifyGeminiError(err(400, { status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.', details: [{ reason: 'API_KEY_INVALID' }] })),
+    'INVALID_KEY',
+  );
+  assert.equal(classifyGeminiError(err(401, { status: 'authentication' })), 'INVALID_KEY');
+  assert.equal(classifyGeminiError(err(403, { status: 'PERMISSION_DENIED' })), 'PERMISSION_DENIED');
+  assert.equal(classifyGeminiError(err(404, { status: 'model_not_found' })), 'MODEL_UNAVAILABLE');
+  assert.equal(classifyGeminiError(err(429, { status: 'RESOURCE_EXHAUSTED', message: 'Resource has been exhausted (e.g. check quota).' })), 'RATE_LIMITED');
+  assert.equal(
+    classifyGeminiError(err(429, { status: 'RESOURCE_EXHAUSTED', message: 'You exceeded your current quota, please check your plan and billing details.' })),
+    'USAGE_LIMIT',
+    'quota wording that mentions billing is a cautious usage limit, not "no credit"',
+  );
+  assert.equal(classifyGeminiError(err(400, { status: 'INVALID_ARGUMENT', message: 'bad field' })), 'INVALID_REQUEST');
+  assert.equal(classifyGeminiError(err(503, { status: 'UNAVAILABLE' })), 'PROVIDER_ERROR');
+});
+
+test('errors: billing failures reach the app as codes only, with a fitting HTTP status', async () => {
+  const { deps } = setup(() => json(402, { error: { code: 402, status: 'payment_required', message: 'Your Prepay credit balance is depleted. SECRET-DETAIL' } }));
+  const res = await read(await handleChat(post({ provider: 'gemini', message: 'Hi' }, await geminiCredential()), deps));
+
+  assert.equal(res.status, 402);
+  assert.deepEqual(res.body, { success: false, errorCode: 'QUOTA_EXCEEDED' });
+  assert.ok(!res.text.includes('SECRET-DETAIL') && !res.text.includes('Prepay'));
+});
+
+// ---- Connect: unverified saves, cross-provider safety ------------------------------------
+
+test('connect: when the provider check cannot finish, the key is saved but marked unverified', async () => {
+  const { deps } = setup(() => json(503, { error: { status: 'UNAVAILABLE' } }));
+  const res = await read(await handleConnect(post({ provider: 'gemini', apiKey: GEMINI_KEY }), deps));
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body['verified'], false);
+  assert.equal(res.body['verifyErrorCode'], 'PROVIDER_ERROR');
+  assert.deepEqual(await openCredential(String(res.body['credential']), SECRET), { provider: 'gemini', apiKey: GEMINI_KEY });
+});
+
+test('connect: rejected keys (bad key, no permission) are never saved', async () => {
+  for (const [status, error] of [
+    [401, { status: 'authentication' }],
+    [403, { status: 'PERMISSION_DENIED' }],
+  ] as const) {
+    const { deps } = setup(() => json(status, { error }));
+    const res = await read(await handleConnect(post({ provider: 'gemini', apiKey: GEMINI_KEY }), deps));
+    assert.equal(res.body['success'], false);
+    assert.equal(res.body['credential'], undefined);
+  }
+});
+
+test('credentials: a key sealed for one provider can never be used for another', async () => {
+  const { deps, providerCalls } = setup(() => json(200, {}));
+
+  for (const [credentialProvider, requested] of [
+    ['gemini', 'openai'],
+    ['openai', 'gemini'],
+    ['anthropic', 'gemini'],
+  ] as const) {
+    const credential = { [AI_CREDENTIAL_HEADER]: await sealCredential({ provider: credentialProvider, apiKey: API_KEY }, SECRET) };
+    const res = await read(await handleChat(post({ provider: requested, message: 'Hi' }, credential), deps));
+    assert.equal(res.body['errorCode'], 'INVALID_KEY', `${credentialProvider} key refused for ${requested}`);
+  }
+
+  assert.equal(providerCalls.length, 0, 'no provider was ever called with the wrong key');
+});
+
+test('logging: Gemini keys never appear in logs', async () => {
+  const lines: string[] = [];
+  const original = console.log;
+  console.log = (...args: unknown[]) => void lines.push(args.map(String).join(' '));
+
+  try {
+    const { deps, logs } = setup(() => json(429, { error: { status: 'RESOURCE_EXHAUSTED' } }));
+    await handleConnect(post({ provider: 'gemini', apiKey: GEMINI_KEY }), deps);
+    await handleChat(post({ provider: 'gemini', message: 'PRIVATE-QUESTION' }, await geminiCredential()), deps);
+
+    const everything = JSON.stringify(logs) + lines.join('\n');
+    assert.ok(!everything.includes(GEMINI_KEY) && !everything.includes('PRIVATE-QUESTION'));
+    assert.ok(logs.some((l) => l.fields['provider'] === 'gemini'), 'safe metadata (provider, code) is still logged');
+  } finally {
+    console.log = original;
+  }
+});
+
+// ---- Models & model selection ------------------------------------------------------
+
+test('models: OpenAI listing keeps text-chat models only, with the default model', async () => {
+  const { deps, providerCalls } = setup(() =>
+    json(200, { data: [{ id: 'gpt-4.1-mini' }, { id: 'text-embedding-3-small' }, { id: 'whisper-1' }, { id: 'gpt-4o-realtime-preview' }, { id: 'o4-mini' }] }),
+  );
+
+  const res = await read(await handleModels(post({ provider: 'openai' }, await credentialFor('openai')), deps));
+
+  assert.equal(res.status, 200);
+  assert.deepEqual((res.body['models'] as { id: string }[]).map((m) => m.id), ['gpt-4.1-mini', 'o4-mini']);
+  assert.equal(res.body['defaultModel'], 'gpt-4.1-mini');
+  assert.equal(providerCalls[0].url, 'https://api.openai.com/v1/models');
+  assert.ok(!res.text.includes(API_KEY));
+});
+
+test('models: Gemini listing keeps generateContent Gemini models and strips the models/ prefix', async () => {
+  const { deps, providerCalls } = setup(() =>
+    json(200, {
+      models: [
+        { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+        { name: 'models/gemini-embedding-001', supportedGenerationMethods: ['embedContent'] },
+      ],
+    }),
+  );
+  const headers = { [AI_CREDENTIAL_HEADER]: await sealCredential({ provider: 'gemini', apiKey: 'AIzaKEY-for-models-0000000' }, SECRET) };
+
+  const res = await read(await handleModels(post({ provider: 'gemini' }, headers), deps));
+
+  assert.deepEqual(res.body['models'], [{ id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }]);
+  assert.ok(!providerCalls[0].url.includes('AIzaKEY'));
+});
+
+test('models: Anthropic listing uses display names; no credential → NOT_CONFIGURED without a provider call', async () => {
+  const { deps, providerCalls } = setup(() => json(200, { data: [{ id: 'claude-haiku-4-5-20251001', display_name: 'Claude Haiku 4.5' }] }));
+
+  const res = await read(await handleModels(post({ provider: 'anthropic' }, await credentialFor('anthropic')), deps));
+  assert.deepEqual(res.body['models'], [{ id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' }]);
+
+  providerCalls.length = 0;
+  const none = await read(await handleModels(post({ provider: 'anthropic' }), deps));
+  assert.equal(none.body['errorCode'], 'NOT_CONFIGURED');
+  assert.equal(providerCalls.length, 0);
+});
+
+test('model: a chosen model is used for that request; unsafe ids are rejected before any provider call', async () => {
+  const { deps, providerCalls } = setup(() => openAiReply('ok'));
+  const auth = await credentialFor('openai');
+
+  await handleChat(post({ provider: 'openai', message: 'Hi', model: 'gpt-4.1' }, auth), deps);
+  assert.equal(JSON.parse(String(providerCalls[0].init.body))['model'], 'gpt-4.1');
+
+  await handleChat(post({ provider: 'openai', message: 'Hi' }, auth), deps);
+  assert.equal(JSON.parse(String(providerCalls[1].init.body))['model'], 'gpt-4.1-mini', 'default when none chosen');
+
+  providerCalls.length = 0;
+  for (const model of ['../x', 'a/b', 'x?key=1', 'a b', 42]) {
+    const res = await read(await handleChat(post({ provider: 'openai', message: 'Hi', model }, auth), deps));
+    assert.equal(res.body['errorCode'], 'INVALID_REQUEST', String(model));
+  }
+  assert.equal(providerCalls.length, 0);
+});
+
+test('model: Gemini puts the chosen model in the URL path safely; unknown model → MODEL_UNAVAILABLE', async () => {
+  const { deps, providerCalls } = setup(() => json(404, { error: { status: 'NOT_FOUND', message: 'models/x is not found' } }));
+  const headers = { [AI_CREDENTIAL_HEADER]: await sealCredential({ provider: 'gemini', apiKey: 'AIzaKEY-model-test-000000' }, SECRET) };
+
+  const res = await read(await handleChat(post({ provider: 'gemini', message: 'Hi', model: 'gemini-2.5-pro' }, headers), deps));
+
+  assert.equal(providerCalls[0].url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent');
+  assert.equal(res.body['errorCode'], 'MODEL_UNAVAILABLE');
+  assert.equal(res.status, 400);
+});
+
+test('ollama is never accepted by the backend', async () => {
+  const { deps, providerCalls } = setup(() => json(200, {}));
+  const res = await read(await handleChat(post({ provider: 'ollama', message: 'Hi' }, await credentialFor('openai')), deps));
+
+  assert.equal(res.body['errorCode'], 'INVALID_REQUEST');
+  assert.equal(providerCalls.length, 0);
+});
+
+test('stop: when the app stops waiting, the provider call is aborted too', async () => {
+  let providerSignal: AbortSignal | undefined;
+  const { deps } = setup(
+    (call) =>
+      new Promise<Response>((_resolve, reject) => {
+        providerSignal = call.init.signal ?? undefined;
+        call.init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      }),
+  );
+  const client = new AbortController();
+  const request = new Request('https://lifeos.example/api/ai/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(await credentialFor('openai')) },
+    body: JSON.stringify({ provider: 'openai', message: 'Hi' }),
+    signal: client.signal,
+  });
+
+  const pending = handleChat(request, deps);
+  await new Promise((r) => setTimeout(r, 10));
+  client.abort();
+  await pending;
+
+  assert.equal(providerSignal?.aborted, true);
 });

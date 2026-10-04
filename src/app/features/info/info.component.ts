@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { ActivatedRoute } from "@angular/router";
 import { AiService } from "../../core/services/ai.service";
 import type { AiProviderId } from "../../core/ai/ai-contract";
-import { AI_CONNECT_FRAGMENT, AI_KEY_GUIDE_FRAGMENT } from "../../core/ai/ai-provider-guides";
+import { AI_CONNECT_FRAGMENT, AI_KEY_GUIDE_FRAGMENT, AI_PROVIDERS, getProviderInfo, isCloudProvider, providerShortName } from "../../core/ai/ai-provider-guides";
 import { CollapsibleSectionComponent } from "../../shared/components/collapsible-section/collapsible-section.component";
 import { AiConnectionPanelComponent } from "./components/ai-connection-panel/ai-connection-panel.component";
 import { AiSetupCarouselComponent } from "./components/ai-setup-carousel/ai-setup-carousel.component";
@@ -37,15 +37,21 @@ export class InfoComponent {
   aiPrivacyOpen = signal(false);
   troubleshootingOpen = signal(false);
 
-  guideProvider = signal<AiProviderId>(this.ai.connection()?.provider ?? "openai");
+  readonly providers = AI_PROVIDERS;
+
+  guideProvider = signal<AiProviderId>(isCloudProvider(this.ai.activeProvider()) ? (this.ai.activeProvider() as AiProviderId) : "openai");
 
   aiPill = computed(() => {
     const status = this.ai.status();
 
+    const active = this.ai.activeProvider();
+    const name = active ? providerShortName(active) : "";
+
     if (status.state === "testing") return { cls: "testing", text: "Connecting…" };
-    if (!this.ai.isConnected()) return { cls: "off", text: "Not connected" };
-    if (status.state === "error") return { cls: "issue", text: "Connection issue" };
-    return { cls: "on", text: "Connected" };
+    if (status.state === "not_configured") return { cls: "off", text: "Not connected" };
+    if (status.state === "error") return { cls: "issue", text: `${name}: connection issue` };
+    if (status.state === "not_tested") return { cls: "issue", text: `${name}: not tested` };
+    return { cls: "on", text: `${name} connected` };
   });
 
   constructor() {
@@ -66,13 +72,17 @@ export class InfoComponent {
 
     this.afterRender(() => {
       scrollToSection(this.connectSection()?.nativeElement);
-      // A failing saved key goes straight to "change key".
-      this.connectionPanel()?.focusForSetup(this.ai.status().state === "error");
+      // Opens the key form where it's needed (a failing key, or nothing configured yet).
+      this.connectionPanel()?.focusForSetup();
     });
   }
 
   /** "Don't have a key? See how" — opens the carousel even if it was collapsed, and brings it into view. */
-  showKeyGuide(): void {
+  showKeyGuide(provider?: AiProviderId): void {
+    if (provider) {
+      this.guideProvider.set(provider);
+    }
+
     this.aiOpen.set(true);
     this.guideOpen.set(true);
 
@@ -83,7 +93,7 @@ export class InfoComponent {
     });
   }
 
-  onProviderChange(provider: AiProviderId): void {
+  selectGuideProvider(provider: AiProviderId): void {
     this.guideProvider.set(provider);
   }
 

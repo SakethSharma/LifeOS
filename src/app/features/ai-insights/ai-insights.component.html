@@ -1,4 +1,27 @@
 <section class="chat-page" [class.started]="hasConversation()" aria-labelledby="ask-ai-title">
+  <!-- Which provider answers: small, out of the way, switchable when more than one is ready. -->
+  <div class="provider-bar" role="status">
+    @if (activeProvider() && usableProviders().length > 1) {
+      <label class="provider-text" for="ai-provider-select">Connected to</label>
+      <select
+        #providerSelect
+        id="ai-provider-select"
+        class="provider-select"
+        [disabled]="chat().pending"
+        (change)="onProviderSelected($event)"
+      >
+        @for (id of usableProviders(); track id) {
+          <option [value]="id" [selected]="id === activeProvider()">{{ providerOptionLabel(id) }}</option>
+        }
+      </select>
+    } @else {
+      <span class="provider-text" [class.provider-warn]="!isConnected()">{{ providerLine() }}</span>
+    }
+    <a class="provider-manage" [routerLink]="setupRoute" [fragment]="connectFragment">
+      {{ activeProvider() ? "Manage" : "Set up AI" }}
+    </a>
+  </div>
+
   @if (!hasConversation()) {
     <header class="intro">
       <div class="intro-icon" aria-hidden="true">✦</div>
@@ -9,7 +32,12 @@
         financial stability.
       </p>
 
-      @if (!isConnected()) {
+      @if (activeKeyFailed()) {
+        <p class="setup-note">
+          The API key for {{ providerName(activeProvider()!) }} isn't working.
+          <a [routerLink]="setupRoute" [fragment]="connectFragment">Update it in Info →</a>
+        </p>
+      } @else if (!isConnected()) {
         <p class="setup-note">
           AI isn't connected yet.
           <a [routerLink]="setupRoute" [fragment]="connectFragment">Set up AI in Info →</a>
@@ -20,6 +48,7 @@
             <button type="button" class="suggestion" (click)="usePrompt(p)">{{ p }}</button>
           }
         </div>
+        <p class="data-note">{{ dataNotice() }}</p>
       }
     </header>
   } @else {
@@ -39,27 +68,34 @@
 
     <ol class="conversation" aria-label="Conversation" aria-live="polite">
       @for (m of chat().messages; track m.id) {
-        <li class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
-          <span class="visually-hidden">{{ m.role === "user" ? "You said:" : "LifeOS AI said:" }}</span>
+        @if (m.role === "notice") {
+          <li class="notice" role="note">{{ m.content }}</li>
+        } @else {
+          <li class="msg" [class.user]="m.role === 'user'" [class.assistant]="m.role === 'assistant'">
+            <span class="visually-hidden">{{ m.role === "user" ? "You said:" : "LifeOS AI said:" }}</span>
 
-          @if (m.role === "assistant") {
-            <span class="msg-avatar" aria-hidden="true">✦</span>
-          }
-
-          <div class="msg-body">
-            @if (m.attachments?.length) {
-              <ul class="msg-files" aria-label="Attached files">
-                @for (f of m.attachments; track $index) {
-                  <li class="msg-file">
-                    <span aria-hidden="true">{{ f.kind === "pdf" ? "📄" : "🖼" }}</span>
-                    <span class="file-name">{{ f.name }}</span>
-                  </li>
-                }
-              </ul>
+            @if (m.role === "assistant") {
+              <span class="msg-avatar" aria-hidden="true">✦</span>
             }
-            <p class="msg-text">{{ m.content }}</p>
-          </div>
-        </li>
+
+            <div class="msg-body">
+              @if (m.attachments?.length) {
+                <ul class="msg-files" aria-label="Attached files">
+                  @for (f of m.attachments; track $index) {
+                    <li class="msg-file">
+                      <span aria-hidden="true">{{ f.kind === "pdf" ? "📄" : "🖼" }}</span>
+                      <span class="file-name">{{ f.name }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+              <p class="msg-text">{{ m.content }}</p>
+              @if (m.provider) {
+                <span class="msg-provider">{{ m.provider }}</span>
+              }
+            </div>
+          </li>
+        }
       }
 
       @if (chat().pending) {
@@ -74,7 +110,12 @@
     </ol>
 
     @if (errorView(); as view) {
-      <app-ai-status-card class="chat-status" [view]="view" (action)="handleAction($event)" />
+      <app-ai-status-card
+        class="chat-status"
+        [view]="view"
+        [canSwitchProvider]="hasAlternativeProvider()"
+        (action)="handleAction($event)"
+      />
     }
 
     @if (chat().unansweredPrompt && !chat().error && !chat().pending && isConnected()) {
@@ -174,21 +215,26 @@
           (keydown)="onPromptKeydown($event)"
         ></textarea>
 
-        <button type="submit" class="icon-btn send-btn" [disabled]="!canSend()" aria-label="Send">
-          @if (chat().pending) {
-            <span class="send-spinner" aria-hidden="true"></span>
-          } @else {
+        @if (chat().pending) {
+          <!-- While a reply is being generated, Send becomes Stop (like ChatGPT). -->
+          <button type="button" class="icon-btn send-btn stop-btn" aria-label="Stop generating" title="Stop generating" (click)="stopGenerating()">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <rect x="1" y="1" width="12" height="12" rx="2.5" fill="currentColor" />
+            </svg>
+          </button>
+        } @else {
+          <button type="submit" class="icon-btn send-btn" [disabled]="!canSend()" aria-label="Send">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <line x1="12" y1="19" x2="12" y2="5" />
               <polyline points="5 12 12 5 19 12" />
             </svg>
-          }
-        </button>
+          </button>
+        }
       </div>
     </div>
 
     <p class="composer-hint">
-      <span class="hint-keys">Enter to send · Shift+Enter for a new line · </span>Images &amp; PDFs up to {{ maxFileMb }} MB
+      <span class="hint-keys">Enter to send · Shift+Enter for a new line · </span>{{ activeProvider() === "ollama" ? "Images" : "Images &amp; PDFs" }} up to {{ maxFileMb }} MB
     </p>
   </form>
 </section>

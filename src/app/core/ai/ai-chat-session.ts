@@ -16,10 +16,13 @@ export interface ChatAttachmentInput extends ChatAttachmentInfo {
 
 export interface ChatMessage {
   id: number;
-  role: 'user' | 'assistant';
+  /** "notice" lines (e.g. "Switched to Google Gemini") are shown in the chat but never sent to the AI. */
+  role: 'user' | 'assistant' | 'notice';
   content: string;
   timestamp: string;
   attachments?: ChatAttachmentInfo[];
+  /** Which provider wrote an assistant reply, e.g. "OpenAI API". */
+  provider?: string;
 }
 
 export interface ChatSessionState {
@@ -30,8 +33,22 @@ export interface ChatSessionState {
   unansweredPrompt: string | null;
 }
 
-/** Sends one turn to the AI. Receives earlier turns (oldest first), the new message, and its files. */
-export type ChatSender = (history: AiChatTurn[], message: string, attachments: AiContentBlock[]) => Promise<string>;
+/** A reply, optionally naming the provider that wrote it. */
+export type ChatReply = string | { text: string; provider?: string };
+
+/**
+ * Sends one turn to the AI. Receives earlier turns (oldest first), the new
+ * message, its files, and a signal that aborts when the user taps Stop.
+ */
+export type ChatSender = (
+  history: AiChatTurn[],
+  message: string,
+  attachments: AiContentBlock[],
+  cancel: AbortSignal,
+) => Promise<ChatReply>;
+
+/** Shown in the conversation after the user stops a reply. */
+export const STOPPED_NOTICE = 'Response stopped.';
 
 /** Used when the user sends files without typing anything. */
 export const ATTACHMENT_ONLY_PROMPT = 'Please look at the attached file(s) and explain anything relevant to my finances.';
@@ -52,6 +69,8 @@ export class AiChatSession {
   /** Bumped on reset so a reply that lands after a reset is dropped. */
   private generation = 0;
   private unansweredBlocks: AiContentBlock[] = [];
+  /** Aborts the request in flight, if any. */
+  private inFlight: AbortController | null = null;
 
   constructor(
     private readonly sender: ChatSender,
@@ -103,8 +122,9 @@ export class AiChatSession {
       return false;
     }
 
-    // History = everything before that unanswered user message.
-    const history = this.historyTurns(this.current.messages.slice(0, -1));
+    // History = everything before that unanswered user message (notices after it don't matter).
+    const lastUser = this.current.messages.map((m) => m.role).lastIndexOf('user');
+    const history = this.historyTurns(this.current.messages.slice(0, lastUser));
 
     this.update({ ...this.current, pending: true, error: null });
     await this.ask(history, message, this.unansweredBlocks);
@@ -137,21 +157,64 @@ export class AiChatSession {
     });
   }
 
+  /** Adds an informational line to the conversation (not sent to the AI). Ignored while a reply is pending. */
+  addNotice(text: string): void {
+    if (this.current.pending || this.current.messages.length === 0) {
+      return;
+    }
+
+    this.update({ ...this.current, messages: [...this.current.messages, this.message('notice', text)] });
+  }
+
   clearError(): void {
     this.update({ ...this.current, error: null });
   }
 
+  /**
+   * Stops the reply being generated: aborts the provider request, drops any
+   * answer that still arrives, and keeps the user's message. Not an error.
+   * Returns false when nothing was in progress.
+   */
+  stop(): boolean {
+    if (!this.current.pending) {
+      return false;
+    }
+
+    this.generation++;
+    this.abortInFlight();
+    this.unansweredBlocks = [];
+    this.update({
+      messages: [...this.current.messages, this.message('notice', STOPPED_NOTICE)],
+      pending: false,
+      error: null,
+      unansweredPrompt: null,
+    });
+    return true;
+  }
+
   reset(): void {
     this.generation++;
+    this.abortInFlight();
     this.unansweredBlocks = [];
     this.update(initialChatState());
   }
 
+  private abortInFlight(): void {
+    this.inFlight?.abort();
+    this.inFlight = null;
+  }
+
   private async ask(history: AiChatTurn[], message: string, blocks: AiContentBlock[]): Promise<void> {
     const generation = this.generation;
+    // One request at a time: anything older is aborted first.
+    this.abortInFlight();
+    const controller = new AbortController();
+    this.inFlight = controller;
 
     try {
-      const reply = (await this.sender(history, message, blocks)).trim();
+      const raw = await this.sender(history, message, blocks, controller.signal);
+      const reply = (typeof raw === 'string' ? raw : raw.text).trim();
+      const provider = typeof raw === 'string' ? undefined : raw.provider;
 
       if (generation !== this.generation) return;
 
@@ -160,16 +223,21 @@ export class AiChatSession {
         return;
       }
 
+      const answer = this.message('assistant', reply);
+      if (provider) answer.provider = provider;
+
       this.unansweredBlocks = [];
       this.update({
-        messages: [...this.current.messages, this.message('assistant', reply)],
+        messages: [...this.current.messages, answer],
         pending: false,
         error: null,
         unansweredPrompt: null,
       });
     } catch (err) {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation || controller.signal.aborted) return;
       this.fail(toAiErrorCode(err), message);
+    } finally {
+      if (this.inFlight === controller) this.inFlight = null;
     }
   }
 
@@ -177,8 +245,9 @@ export class AiChatSession {
     this.update({ ...this.current, pending: false, error: code, unansweredPrompt: message });
   }
 
-  private historyTurns(messages = this.current.messages): AiChatTurn[] {
+  private historyTurns(all = this.current.messages): AiChatTurn[] {
     const turns: AiChatTurn[] = [];
+    const messages = all.filter((m) => m.role !== 'notice');
 
     // Only answered exchanges; an unanswered user message is dropped from history.
     // Earlier files aren't resent — just named, so the AI knows they existed.

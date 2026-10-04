@@ -1,6 +1,8 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { AiChatSession, initialChatState } from '../ai/ai-chat-session';
 import type { ChatSessionState } from '../ai/ai-chat-session';
+import type { AiProviderChoice } from '../ai/ai-contract';
+import { isCloudProvider, providerShortName } from '../ai/ai-provider-guides';
 import { AiContextService } from './ai-context.service';
 import { AiService } from './ai.service';
 
@@ -19,9 +21,16 @@ export class AiConversationService {
   readonly draft = signal('');
 
   readonly session = new AiChatSession(
-    (history, message, attachments) => this.ai.chat(history, message, this.aiContext.build(), attachments),
+    async (history, message, attachments, cancel) => {
+      const reply = await this.ai.chatWithProvider(history, message, this.aiContext.build(), attachments, cancel);
+      const model = this.ai.connections()[reply.provider]?.model;
+      const name = providerShortName(reply.provider);
+      return { text: reply.text, provider: model ? `${name} · ${model}` : name };
+    },
     (state) => this.state.set(state),
   );
+
+  private previousActive: AiProviderChoice | null = this.ai.activeProvider();
 
   constructor() {
     // Once the user connects, "AI isn't connected" no longer applies; their
@@ -32,15 +41,33 @@ export class AiConversationService {
       }
     });
 
-    // Disconnecting ends the conversation (it was with that provider).
+    // Removing every provider ends the conversation. A single failing key
+    // doesn't — the error (and the option to switch) stays visible.
     effect(() => {
-      if (!this.ai.isConnected() && this.state().messages.length > 0 && this.state().error !== 'NOT_CONFIGURED') {
-        this.reset();
+      const noneConfigured = Object.keys(this.ai.connections()).length === 0;
+      const state = this.state();
+
+      if (noneConfigured && state.messages.length > 0 && state.error !== 'NOT_CONFIGURED') {
+        untracked(() => this.reset());
+      }
+    });
+
+    // Make provider switches visible in the chat. Earlier messages are sent
+    // along as context, so say so rather than implying a fresh start.
+    effect(() => {
+      const active = this.ai.activeProvider();
+      const previous = this.previousActive;
+      this.previousActive = active;
+
+      if (active && previous && active !== previous) {
+        const name = providerShortName(active);
+        const where = isCloudProvider(active) ? `shared with ${name}` : `sent to ${name} on your device`;
+        untracked(() => this.session.addNotice(`Switched to ${name}. Earlier messages in this chat are ${where} as context.`));
       }
     });
   }
 
-  /** Starts a new conversation. Keeps the AI connection, transactions, and all other data. */
+  /** Starts a new conversation. Keeps the AI connections, transactions, and all other data. */
   reset(): void {
     this.session.reset();
     this.draft.set('');
