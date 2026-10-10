@@ -1,6 +1,12 @@
 [build]
-command = "npx ng build"
+# Production build: optimized bundles plus the service worker (ngsw-worker.js),
+# the same configuration the Android APK workflow uses.
+command = "npx ng build --configuration production"
 publish = "dist/demo/browser"
+
+[build.environment]
+# Angular 21 needs Node ^20.19 || ^22.12 || >=24; pin it so Netlify's default can't break builds.
+NODE_VERSION = "22"
 
 [functions]
 directory = "netlify/functions"

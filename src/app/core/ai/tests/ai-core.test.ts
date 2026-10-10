@@ -845,3 +845,29 @@ test('chat: replies record their provider; switch notices are shown but never se
     { role: 'assistant', content: 'answer from OpenAI API' },
   ]);
 });
+
+// ---- Android app: backend address -------------------------------------------------
+
+import { nativeBackendBaseUrl } from '../ai-backend.config';
+
+test('android: backend address must be an https origin; empty or unsafe means "not linked" (BACKEND_UNAVAILABLE)', async () => {
+  assert.equal(nativeBackendBaseUrl('https://my-lifeos.example'), 'https://my-lifeos.example');
+  assert.equal(nativeBackendBaseUrl(' https://my-lifeos.example/ '), 'https://my-lifeos.example');
+  assert.equal(nativeBackendBaseUrl(''), null);
+  assert.equal(nativeBackendBaseUrl('http://192.168.1.10:8080'), null, 'credentials never over plain http');
+  assert.equal(nativeBackendBaseUrl('http://localhost:8080'), null, 'localhost on a phone is the phone');
+  assert.equal(nativeBackendBaseUrl('https://site.example/api'), null);
+  assert.equal(nativeBackendBaseUrl('https://user:pw@site.example'), null);
+
+  const unlinked = new AiBackendClient({ baseUrl: nativeBackendBaseUrl(''), isOnline: () => true, fetch: (async () => { throw new Error('must not be called'); }) as unknown as typeof fetch });
+  assert.equal(await codeOf(unlinked.test('gemini', 'c')), 'BACKEND_UNAVAILABLE');
+
+  const urls: string[] = [];
+  const linked = new AiBackendClient({
+    baseUrl: nativeBackendBaseUrl('https://my-lifeos.example'),
+    isOnline: () => true,
+    fetch: (async (url: string) => (urls.push(url), jsonResponse(200, { success: true, provider: 'gemini' }))) as unknown as typeof fetch,
+  });
+  await linked.test('gemini', 'sealed');
+  assert.deepEqual(urls, ['https://my-lifeos.example/api/ai/test']);
+});

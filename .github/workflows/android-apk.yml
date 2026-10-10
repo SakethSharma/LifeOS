@@ -28,8 +28,21 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # The Android app runs from https://localhost on the phone, so it needs the
+      # address of a deployed HTTPS AI backend. Set the repository variable
+      # LIFEOS_AI_BACKEND_URL (Settings → Secrets and variables → Actions →
+      # Variables), e.g. https://your-site.example. It's a public URL, not a secret.
       - name: Build Angular production app
-        run: npm run build -- --configuration production
+        env:
+          LIFEOS_AI_BACKEND_URL: ${{ vars.LIFEOS_AI_BACKEND_URL }}
+        run: |
+          if [ -z "$LIFEOS_AI_BACKEND_URL" ]; then
+            echo "::warning::LIFEOS_AI_BACKEND_URL is not set; AI will show 'AI isn't available here yet' in this APK."
+          elif ! echo "$LIFEOS_AI_BACKEND_URL" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$'; then
+            echo "::error::LIFEOS_AI_BACKEND_URL must be an https:// address with no path."
+            exit 1
+          fi
+          npm run build -- --configuration production --define "LIFEOS_AI_BACKEND_URL='${LIFEOS_AI_BACKEND_URL%/}'"
 
       - name: Set up Java 21
         uses: actions/setup-java@v4

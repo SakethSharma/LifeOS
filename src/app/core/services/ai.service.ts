@@ -11,7 +11,7 @@ import type {
   AiProviderId,
 } from '../ai/ai-contract';
 import { AiBackendClient } from '../ai/ai-backend-client';
-import { AI_BACKEND_NATIVE_BASE_URL } from '../ai/ai-backend.config';
+import { nativeBackendBaseUrl } from '../ai/ai-backend.config';
 import { AiConnectionStorage } from '../ai/ai-connection-storage';
 import { AiConnectionManager } from '../ai/ai-connection-manager';
 import type { AiConnectionsState, ModelListResult, ProviderConnectionView, SaveKeyResult } from '../ai/ai-connection-manager';
@@ -185,7 +185,7 @@ function resolveBackendBaseUrl(): string | null {
     return '';
   }
 
-  return AI_BACKEND_NATIVE_BASE_URL.trim() ? AI_BACKEND_NATIVE_BASE_URL.trim().replace(/\/+$/, '') : null;
+  return nativeBackendBaseUrl();
 }
 
 function isNavigatorOnline(): boolean {
