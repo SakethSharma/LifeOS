@@ -1,7 +1,12 @@
 @if (!available) {
   <p class="sms-note">
-    SMS import is available in the LifeOS Android app. Browsers can't read
-    text messages.
+    @if (androidWithoutSms) {
+      SMS import isn't included in this version of the LifeOS app. Everything
+      else works as usual — add transactions manually or import a file.
+    } @else {
+      SMS import is available in the LifeOS Android app. Browsers can't read
+      text messages.
+    }
   </p>
 } @else if (!state().onboarded) {
   <!-- First time: explain before asking Android for anything. -->

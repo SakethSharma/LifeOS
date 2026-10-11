@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Merged into the main manifest only for the "smsImport" flavor.
+  READ_SMS is a restricted permission: Google Play requires an approved
+  Permissions Declaration, and Play Protect may block installs of this
+  flavor from browsers / messaging apps / file managers.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- On-device SMS transaction import (read-only). -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+</manifest>

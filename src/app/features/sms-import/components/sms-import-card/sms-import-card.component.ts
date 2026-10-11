@@ -29,6 +29,7 @@ export class SmsImportCardComponent {
 
   readonly options = SMS_HISTORY_OPTIONS;
   readonly available = this.sms.available;
+  readonly androidWithoutSms = this.sms.androidWithoutSms;
 
   state = this.sms.state;
   permission = this.sms.permission;

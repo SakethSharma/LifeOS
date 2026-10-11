@@ -42,7 +42,5 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- On-device SMS transaction import (read-only). Remove together with
-         sms/SmsInboxPlugin.java for builds that must not request SMS access. -->
-    <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- READ_SMS is declared only by the "smsImport" flavor (src/smsImport/AndroidManifest.xml). -->
 </manifest>

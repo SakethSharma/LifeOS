@@ -16,6 +16,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // "standard" (default): every LifeOS feature except SMS import — no READ_SMS,
+    // no SMS plugin. Installs normally, including where Play Protect blocks
+    // sideloaded apps that request SMS access.
+    // "smsImport": adds the on-device SMS importer and READ_SMS. Distribute only
+    // where that permission is allowed (e.g. Google Play with an approved
+    // Permissions Declaration).
+    flavorDimensions = ["features"]
+    productFlavors {
+        standard {
+            dimension "features"
+            isDefault = true
+        }
+        smsImport {
+            dimension "features"
+            versionNameSuffix "-sms"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false

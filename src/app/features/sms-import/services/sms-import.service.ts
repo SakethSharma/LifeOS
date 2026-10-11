@@ -22,8 +22,10 @@ export class SmsImportService {
   private engine = new SmsImportEngine(this.inbox, this.store);
   private resumeListening = false;
 
-  /** False in a browser / PWA: SMS can only be read by the Android app. */
+  /** False in a browser / PWA, and in the "standard" Android build (no SMS permission). */
   readonly available = this.inbox.isAvailable();
+  /** Android app without the SMS importer (standard build) — shown differently from a browser. */
+  readonly androidWithoutSms = this.inbox.isAndroidApp() && !this.available;
 
   readonly state = signal<SmsImportState>(defaultSmsImportState());
   readonly permission = signal<SmsPermission>('prompt');

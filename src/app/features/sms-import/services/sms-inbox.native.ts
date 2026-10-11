@@ -18,6 +18,12 @@ const SmsInboxNative = registerPlugin<SmsInboxPlugin>('SmsInbox');
  * (or the PWA) isAvailable() is false and nothing is ever requested.
  */
 export class NativeSmsInbox implements SmsInbox {
+  /** Running as the Android app (whether or not this build includes SMS import). */
+  isAndroidApp(): boolean {
+    return Capacitor.getPlatform() === 'android';
+  }
+
+  /** The Android plugin is only in the "smsImport" build flavor. */
   isAvailable(): boolean {
     return Capacitor.getPlatform() === 'android' && Capacitor.isPluginAvailable('SmsInbox');
   }
