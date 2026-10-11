@@ -4,6 +4,7 @@ import { SettingsService } from './core/services/settings.service';
 import { ThemeService } from './core/services/theme.service';
 import { TransactionService } from './core/services/transaction.service';
 import { BackButtonService } from './core/services/back-button.service';
+import { SmsImportService } from './features/sms-import/services/sms-import.service';
 
 @Component({
   selector: 'app-root',
@@ -20,6 +21,7 @@ export class App implements OnInit {
   private transactionService = inject(TransactionService);
   private router = inject(Router);
   private backButton = inject(BackButtonService);
+  private smsImport = inject(SmsImportService);
 
   ready = signal(false);
 
@@ -32,5 +34,12 @@ export class App implements OnInit {
     } finally {
       this.ready.set(true);
     }
+
+    // SMS import (Android app only, if the user turned it on): checks new messages
+    // in the background after the app is shown. Never blocks startup.
+    void this.smsImport
+      .init()
+      .then(() => this.smsImport.scanOnAppOpen())
+      .catch(() => undefined);
   }
 }

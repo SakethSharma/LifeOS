@@ -2,11 +2,12 @@ import { Component, computed, inject } from "@angular/core";
 import { RouterLink } from "@angular/router";
 import { AiService } from "../../core/services/ai.service";
 import { AI_CONNECT_FRAGMENT, providerLabel } from "../../core/ai/ai-provider-guides";
+import { SmsImportCardComponent } from "../sms-import/components/sms-import-card/sms-import-card.component";
 
 @Component({
   selector: "app-settings",
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, SmsImportCardComponent],
   templateUrl: "./settings.component.html",
   styleUrl: "./settings.component.scss",
 })

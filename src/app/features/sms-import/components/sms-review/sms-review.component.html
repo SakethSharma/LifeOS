@@ -1,0 +1,58 @@
+<ul class="review-list" aria-label="Transactions to review">
+  @for (item of items(); track item.messageKey) {
+    @if (item.candidate; as c) {
+      <li class="review-item">
+        <p class="review-reason">{{ reason(item) }}</p>
+
+        @if (editing() === item.messageKey && draft(); as d) {
+          <div class="review-edit">
+            <label>
+              Type
+              <select class="form-control" [value]="d.kind" (change)="onKind($event)">
+                <option value="debit" [selected]="d.kind === 'debit'">Expense</option>
+                <option value="credit" [selected]="d.kind === 'credit'">Income</option>
+                <option value="refund" [selected]="d.kind === 'refund'">Refund</option>
+              </select>
+            </label>
+            <label>
+              Amount ({{ symbol() }})
+              <input class="form-control" type="text" inputmode="decimal" [value]="d.amount" (input)="onAmount($event)" />
+            </label>
+            <label>
+              Date
+              <input class="form-control" type="date" [value]="d.date" (input)="onDate($event)" />
+            </label>
+          </div>
+          @if (error()) {
+            <p class="review-error" role="alert">{{ error() }}</p>
+          }
+        } @else {
+          <dl class="review-fields">
+            <div><dt>{{ kindLabel(c.kind) }}</dt><dd class="review-amount">{{ symbol() }}{{ c.amount.toLocaleString("en-IN") }}</dd></div>
+            <div><dt>Date</dt><dd>{{ c.date }}{{ c.time ? " " + c.time : "" }}</dd></div>
+            @if (c.counterparty) {
+              <div><dt>{{ c.kind === "debit" ? "To" : "From" }}</dt><dd>{{ c.counterparty }}</dd></div>
+            }
+            @if (c.accountSuffix) {
+              <div><dt>Account</dt><dd>••{{ c.accountSuffix }}</dd></div>
+            }
+            @if (c.paymentMethod) {
+              <div><dt>Method</dt><dd>{{ c.paymentMethod }}</dd></div>
+            }
+          </dl>
+        }
+
+        <div class="review-actions">
+          <button type="button" class="btn btn-sm" [disabled]="busy()" (click)="confirm(item)">Import</button>
+          @if (editing() === item.messageKey) {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">Cancel edit</button>
+          } @else {
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="startEdit(item)">Edit</button>
+          }
+          <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy()" (click)="reject(item)">Not a transaction</button>
+        </div>
+      </li>
+    }
+  }
+</ul>
+<p class="review-caption">Items you don't decide on stay here for later. Only the details shown are stored — not the message.</p>

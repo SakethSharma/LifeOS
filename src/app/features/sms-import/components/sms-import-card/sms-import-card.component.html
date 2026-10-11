@@ -1,0 +1,130 @@
+@if (!available) {
+  <p class="sms-note">
+    SMS import is available in the LifeOS Android app. Browsers can't read
+    text messages.
+  </p>
+} @else if (!state().onboarded) {
+  <!-- First time: explain before asking Android for anything. -->
+  <div class="sms-intro">
+    <ul class="sms-points">
+      <li>LifeOS reads bank, UPI and card SMS to add your transactions automatically.</li>
+      <li>Messages are processed only on this phone — never sent to AI or any server.</li>
+      <li>OTPs, offers, reminders, failed payments and personal messages are skipped.</li>
+      <li>Only the transaction details are saved, not your messages.</li>
+    </ul>
+
+    <fieldset class="sms-period">
+      <legend>Import transactions from</legend>
+      @for (o of options; track o.value) {
+        <label class="sms-period-option" [class.selected]="chosenMonths() === o.value">
+          <input type="radio" name="sms-period" [value]="o.value" [checked]="chosenMonths() === o.value" (change)="chosenMonths.set(o.value)" />
+          {{ o.label }}
+        </label>
+      }
+    </fieldset>
+
+    <button type="button" class="btn sms-primary" [disabled]="busy() || scanning()" (click)="enable()">
+      Allow SMS access &amp; import
+    </button>
+    <p class="sms-caption">Android will ask you to allow LifeOS to read SMS. You can turn this off any time.</p>
+  </div>
+} @else {
+  @if (permission() !== "granted") {
+    <div class="sms-permission" role="status">
+      <strong>SMS permission is off</strong>
+      @if (permission() === "denied") {
+        <p>Android won't show the request again. Turn on SMS for LifeOS in Android Settings → Permissions.</p>
+        <div class="sms-actions">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="openAndroidSettings()">Open Android Settings</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="requestPermission()">I've turned it on</button>
+        </div>
+      } @else {
+        <p>LifeOS needs permission to read SMS to import transactions. Everything else keeps working without it.</p>
+        <div class="sms-actions">
+          <button type="button" class="btn btn-secondary btn-sm" [disabled]="busy()" (click)="requestPermission()">Allow SMS access</button>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="sms-row">
+    <div>
+      <h3>Import from SMS</h3>
+      <p>{{ state().enabled ? "On — new messages are checked when you open LifeOS." : "Off — imported transactions are kept." }}</p>
+    </div>
+    <button
+      type="button"
+      class="sms-switch"
+      role="switch"
+      [attr.aria-checked]="state().enabled"
+      aria-label="Import transactions from SMS"
+      [disabled]="busy() || scanning()"
+      (click)="toggleEnabled()"
+    >
+      <span class="sms-switch-knob" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  <div class="sms-row">
+    <label class="sms-label" for="sms-history">History to import</label>
+    <select id="sms-history" class="form-control sms-select" [value]="state().historyMonths" [disabled]="busy() || scanning()" (change)="onHistoryChange($event)">
+      @for (o of options; track o.value) {
+        <option [value]="o.value" [selected]="state().historyMonths === o.value">{{ o.label }}</option>
+      }
+    </select>
+  </div>
+
+  <dl class="sms-status">
+    <div><dt>Last successful scan</dt><dd>{{ lastScanText() }}</dd></div>
+    <div><dt>Status</dt><dd>{{ statusText() }}</dd></div>
+  </dl>
+
+  @if (scanning()) {
+    <div class="sms-loader" role="status" aria-live="polite">
+      <span class="sms-spinner" aria-hidden="true"></span>
+      <div class="sms-loader-text">
+        <strong>{{ statusLine() }}</strong>
+        @if (progress(); as p) {
+          @if (p.checked > 0) {
+            <span>{{ p.checked }} messages checked{{ p.candidates ? " · " + p.candidates + " possible transactions" : "" }}</span>
+          }
+        }
+      </div>
+    </div>
+  } @else {
+    @if (resultText()) {
+      <p class="sms-result" role="status">{{ resultText() }}</p>
+    }
+
+    <div class="sms-actions">
+      <button type="button" class="btn sms-primary" [disabled]="!state().enabled || permission() !== 'granted' || busy()" (click)="scanNow()">
+        Scan messages now
+      </button>
+      @if (reviewCount() > 0) {
+        <button type="button" class="btn btn-secondary" (click)="showReview.set(!showReview())">
+          {{ showReview() ? "Hide review" : "Review " + reviewCount() + " item" + (reviewCount() === 1 ? "" : "s") }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (showReview() && reviewCount() > 0) {
+    <app-sms-review [symbol]="currencySymbol()" />
+  }
+
+  <div class="sms-reset">
+    @if (confirmingReset()) {
+      <p>
+        This forgets which messages were scanned, rejected or awaiting review,
+        and turns SMS import off. Your transactions are not deleted, and
+        re-scanning won't duplicate them.
+      </p>
+      <div class="sms-actions">
+        <button type="button" class="btn btn-danger btn-sm" [disabled]="busy() || scanning()" (click)="confirmReset()">Reset SMS import</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="confirmingReset.set(false)">Cancel</button>
+      </div>
+    } @else {
+      <button type="button" class="link-btn" [disabled]="scanning()" (click)="confirmingReset.set(true)">Reset SMS import data…</button>
+    }
+  </div>
+}

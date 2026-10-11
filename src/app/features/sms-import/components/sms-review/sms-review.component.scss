@@ -1,0 +1,87 @@
+:host {
+  display: block;
+  margin-top: 1rem;
+}
+
+.review-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-item {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.review-reason {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.review-fields {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  font-size: 0.875rem;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  dt {
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+}
+
+.review-amount {
+  font-weight: 700;
+}
+
+.review-edit {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+
+  label {
+    display: grid;
+    gap: 0.25rem;
+  }
+}
+
+.review-error {
+  margin: 0.5rem 0 0;
+  color: var(--danger, #dc2626);
+  font-size: 0.8125rem;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+
+  .btn {
+    flex: 1 1 auto;
+  }
+}
+
+.review-caption {
+  margin: 0.75rem 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}

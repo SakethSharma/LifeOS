@@ -12,9 +12,18 @@ export interface Transaction {
   paymentMethod?: string;
   notes?: string;
   isDemo?: boolean;
+  /** Where the record came from. Absent = entered by the user (or older records). */
+  source?: TransactionSource;
+  /**
+   * Stable duplicate-check key for imported records (bank reference or a
+   * fingerprint of normalized fields). Never contains raw message text.
+   */
+  importKey?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type TransactionSource = 'sms';
 
 export interface NewTransaction {
   type: TransactionType;
@@ -25,6 +34,8 @@ export interface NewTransaction {
   description: string;
   paymentMethod?: string;
   notes?: string;
+  source?: TransactionSource;
+  importKey?: string;
 }
 
 export const EXPENSE_CATEGORIES = [
@@ -44,6 +55,8 @@ export const INCOME_CATEGORIES = [
   'Freelance',
   'Business',
   'Gift',
+  /** Refunds and reversals of earlier spending (e.g. imported from bank SMS). */
+  'Refund',
   'Other',
 ] as const;
 
